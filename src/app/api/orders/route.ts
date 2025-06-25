@@ -45,13 +45,15 @@ function createGoogleAuth() {
     
     const formattedPrivateKey = formatPrivateKey(privateKey);
     
-    return new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: formattedPrivateKey,
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Try using JWT auth instead of GoogleAuth
+    const auth = new google.auth.JWT(
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      undefined,
+      formattedPrivateKey,
+      ['https://www.googleapis.com/auth/spreadsheets']
+    );
+    
+    return auth;
   } catch (error) {
     console.error('Error creating Google Auth:', error);
     throw error;
@@ -107,8 +109,33 @@ export async function POST(request: NextRequest) {
       spreadsheetId: SPREADSHEET_ID ? 'Set' : 'Missing'
     });
 
+    // Test private key format before creating auth
+    try {
+      const testFormattedKey = formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+      console.log('Private key formatted successfully, length:', testFormattedKey.length);
+      console.log('First 50 chars:', testFormattedKey.substring(0, 50));
+      console.log('Last 50 chars:', testFormattedKey.substring(testFormattedKey.length - 50));
+    } catch (formatError) {
+      console.error('Private key formatting failed:', formatError);
+      return NextResponse.json(
+        { success: false, message: 'Server configuration error: Invalid private key format' },
+        { status: 500 }
+      );
+    }
+
     // Create Google Auth and Sheets API client
-    const auth = createGoogleAuth();
+    let auth;
+    try {
+      auth = createGoogleAuth();
+      console.log('Google Auth created successfully');
+    } catch (authError) {
+      console.error('Google Auth creation failed:', authError);
+      return NextResponse.json(
+        { success: false, message: 'Server configuration error: Failed to create authentication' },
+        { status: 500 }
+      );
+    }
+
     const sheets = google.sheets({ version: 'v4', auth });
 
     const orderData = await request.json();
