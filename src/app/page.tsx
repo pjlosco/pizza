@@ -13,9 +13,9 @@ interface CartItem {
 interface CustomerInfo {
   name: string;
   phone: string;
-  address: string;
   email: string;
   referralCode: string;
+  orderDate: string;
 }
 
 export default function Home() {
@@ -25,15 +25,15 @@ export default function Home() {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     name: "",
     phone: "",
-    address: "",
     email: "",
-    referralCode: ""
+    referralCode: "",
+    orderDate: new Date().toISOString().split('T')[0]
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
 
   const pizzaMenu = [
-    { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature tomato sauce" },
-    { id: "pepperoni", name: "Weekly Special", price: 25, description: "Flavorful pepperoni with melted cheese, basil, and Italian seasoning" }
+    { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organictomato sauce" },
+    { id: "yoshi", name: "Yoshi's Weekly Special", price: 25, description: "Flavorful pepperoni with melted cheese, basil, and Italian seasoning" }
   ];
 
   const getTotalCartQuantity = () => {
@@ -205,11 +205,19 @@ export default function Home() {
               </button>
             </div>
             
+            {/* Pickup Only Notice */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-green-800 text-center">
+                🚚 Pickup Only - Cash payment upon pickup
+              </p>
+            </div>
+            
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-red-800 text-center">
                 Maximum 2 pizzas per order • {getTotalCartQuantity()}/2 used
               </p>
             </div>
+            
             <div className="space-y-4 mb-6">
               {pizzaMenu.map(pizza => {
                 const cartItem = cart.find(item => item.id === pizza.id);
@@ -277,6 +285,13 @@ export default function Home() {
               </button>
             </div>
             
+            {/* Pickup Only Notice */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-green-800 text-center">
+                🚚 Pickup Only - We'll call you when your order is ready!
+              </p>
+            </div>
+            
             <form onSubmit={handleOrderSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
@@ -303,14 +318,17 @@ export default function Home() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address *</label>
-                <textarea
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
+                <input
+                  type="date"
                   required
-                  value={customerInfo.address}
-                  onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
-                  rows={3}
+                  value={customerInfo.orderDate}
+                  onChange={(e) => setCustomerInfo({...customerInfo, orderDate: e.target.value})}
+                  min={new Date().toISOString().split('T')[0]}
+                  max={new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
+                <p className="text-sm text-gray-500 mt-1">Select a date between today and 4 weeks from now</p>
               </div>
               
               <div>
@@ -341,7 +359,7 @@ export default function Home() {
                   <span className="text-lg font-semibold">Total:</span>
                   <span className="text-xl font-bold text-red-600">${getTotalPrice()}</span>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">Payment: Cash on delivery</p>
+                <p className="text-sm text-gray-600 mb-4">Payment: Cash on pickup</p>
                 <button
                   type="submit"
                   className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
@@ -361,17 +379,17 @@ export default function Home() {
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-2xl font-bold mb-4">Order Confirmed!</h3>
             <p className="text-gray-600 mb-6">
-              Thank you for your order! We'll call you at {customerInfo.phone} when your pizza is ready for delivery.
+              Thank you for your order! We'll call you at {customerInfo.phone} when your pizza is ready for pickup.
             </p>
             <div className="bg-red-50 p-4 rounded-lg mb-6">
               <p className="font-semibold">Order Total: ${getTotalPrice()}</p>
-              <p className="text-sm text-gray-600">Pay with cash upon delivery</p>
+              <p className="text-sm text-gray-600">Pay with cash upon pickup</p>
             </div>
             <button
               onClick={() => {
                 setOrderSubmitted(false);
                 setCart([]);
-                setCustomerInfo({ name: "", phone: "", address: "", email: "", referralCode: "" });
+                setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date().toISOString().split('T')[0] });
               }}
               className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
             >
@@ -384,6 +402,14 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+          {/* Pickup Only Notice */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
+              <span className="mr-2">🚚</span>
+              Pickup Only - Fresh from our oven to your table!
+            </div>
+          </div>
+          
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
               <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
@@ -392,7 +418,7 @@ export default function Home() {
               </h1>
               <p className="text-xl text-gray-600 leading-relaxed">
                 Experience the authentic taste of homemade pizza, crafted with fresh ingredients, 
-                organic flour, 2 kinds of mozzarella, and our signature tomato sauce.
+                organic flour, 2 kinds of mozzarella, and our signature organic tomato sauce.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <a 
@@ -515,7 +541,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-white mb-6">Ready to Taste the Difference?</h2>
           <p className="text-xl text-red-100 mb-8">
-            Order now and experience the authentic taste of homemade pizza like no other in the area.
+            Order now and experience the authentic taste of homemade pizza for pickup.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
