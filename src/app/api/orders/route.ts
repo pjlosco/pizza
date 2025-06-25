@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       orderData.items.map((item: any) => `${item.name} (${item.quantity})`).join(', '),
       `$${orderData.total}`,
       'Pending', // Status
-      '', // Notes
+      orderData.customer.specialRequests || '', // Notes - Special Requests
     ];
 
     console.log('Attempting to append to spreadsheet:', SPREADSHEET_ID);

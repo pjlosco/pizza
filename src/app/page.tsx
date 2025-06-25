@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
 interface CartItem {
@@ -16,6 +16,7 @@ interface CustomerInfo {
   email: string;
   referralCode: string;
   orderDate: string;
+  specialRequests: string;
 }
 
 export default function Home() {
@@ -27,9 +28,43 @@ export default function Home() {
     phone: "",
     email: "",
     referralCode: "",
-    orderDate: new Date().toISOString().split('T')[0]
+    orderDate: new Date().toISOString().split('T')[0],
+    specialRequests: ""
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+
+  // Handle ESC key to close modals
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (orderSubmitted) {
+          setOrderSubmitted(false);
+          setCart([]);
+          setCustomerInfo({ 
+            name: "", 
+            phone: "", 
+            email: "", 
+            referralCode: "", 
+            orderDate: new Date().toISOString().split('T')[0],
+            specialRequests: ""
+          });
+        } else if (showOrderForm) {
+          setShowOrderForm(false);
+        } else if (showCart) {
+          setShowCart(false);
+        }
+      }
+    };
+
+    // Only add listener if any modal is open
+    if (showCart || showOrderForm || orderSubmitted) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showCart, showOrderForm, orderSubmitted]);
 
   const pizzaMenu = [
     { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organic tomato sauce" },
@@ -123,12 +158,38 @@ export default function Home() {
     setCustomerInfo({...customerInfo, phone: formatted});
   };
 
+  // Function to disable Sundays in date picker
+  const disableSundays = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayOfWeek = date.getDay();
+    return dayOfWeek === 0; // 0 = Sunday
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = e.target.value;
+    if (disableSundays(selectedDate)) {
+      // If Sunday is selected, find the next Monday
+      const date = new Date(selectedDate);
+      date.setDate(date.getDate() + 1);
+      const nextMonday = date.toISOString().split('T')[0];
+      setCustomerInfo({...customerInfo, orderDate: nextMonday});
+    } else {
+      setCustomerInfo({...customerInfo, orderDate: selectedDate});
+    }
+  };
+
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate phone number
     if (!validatePhoneNumber(customerInfo.phone)) {
       alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    
+    // Validate that the selected date is not a Sunday
+    if (disableSundays(customerInfo.orderDate)) {
+      alert("Sorry, we are closed on Sundays. Please select a different pickup date.");
       return;
     }
     
@@ -323,12 +384,12 @@ export default function Home() {
                   type="date"
                   required
                   value={customerInfo.orderDate}
-                  onChange={(e) => setCustomerInfo({...customerInfo, orderDate: e.target.value})}
+                  onChange={handleDateChange}
                   min={new Date().toISOString().split('T')[0]}
                   max={new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
-                <p className="text-sm text-gray-500 mt-1">Select a date between today and 4 weeks from now</p>
+                <p className="text-sm text-gray-500 mt-1">Select a date between today and 4 weeks from now (Sundays not available)</p>
               </div>
               
               <div>
@@ -350,6 +411,18 @@ export default function Home() {
                   value={customerInfo.referralCode}
                   onChange={(e) => setCustomerInfo({...customerInfo, referralCode: e.target.value})}
                   placeholder="Enter referral code"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
+                <p className="text-sm text-gray-500 mt-1">Let us know if you have any special requests or dietary restrictions</p>
+                <textarea
+                  value={customerInfo.specialRequests}
+                  onChange={(e) => setCustomerInfo({...customerInfo, specialRequests: e.target.value})}
+                  placeholder="Any special requests or notes for your order..."
+                  rows={3}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
               </div>
@@ -379,7 +452,8 @@ export default function Home() {
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-2xl font-bold mb-4">Order Confirmed!</h3>
             <p className="text-gray-600 mb-6">
-              Thank you for your order! We'll call you at {customerInfo.phone} when your pizza is ready for pickup.
+              Thank you for your order!<br />
+              We'll text you at {customerInfo.phone} when your pizza is assigned a pick up time and again when it's ready for pickup.
             </p>
             <div className="bg-red-50 p-4 rounded-lg mb-6">
               <p className="font-semibold">Order Total: ${getTotalPrice()}</p>
@@ -389,11 +463,11 @@ export default function Home() {
               onClick={() => {
                 setOrderSubmitted(false);
                 setCart([]);
-                setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date().toISOString().split('T')[0] });
+                setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date().toISOString().split('T')[0], specialRequests: "" });
               }}
               className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
             >
-              Continue Shopping
+              Thank You!
             </button>
           </div>
         </div>
@@ -568,8 +642,8 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4 text-green-200">Hours</h4>
               <div className="space-y-2 text-green-100">
-                <p>Mon-Fri: 11AM - 10PM</p>
-                <p>Sat-Sun: 12PM - 11PM</p>
+                <p>Mon-Sat: 4PM - 7PM</p>
+                <p>Sunday: Closed</p>
               </div>
             </div>
           </div>
