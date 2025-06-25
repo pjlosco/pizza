@@ -3,30 +3,61 @@ import { google } from 'googleapis';
 
 // Helper function to properly format private key
 function formatPrivateKey(privateKey: string): string {
-  // Remove any existing formatting
-  let formatted = privateKey.replace(/\\n/g, '\n');
-  
-  // Ensure it starts and ends with the proper markers
-  if (!formatted.includes('-----BEGIN PRIVATE KEY-----')) {
-    formatted = '-----BEGIN PRIVATE KEY-----\n' + formatted;
+  try {
+    // Remove any existing formatting and clean up
+    let formatted = privateKey
+      .replace(/\\n/g, '\n')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .trim();
+    
+    // Remove any extra whitespace between lines
+    formatted = formatted.split('\n').map(line => line.trim()).join('\n');
+    
+    // Ensure it starts and ends with the proper markers
+    if (!formatted.includes('-----BEGIN PRIVATE KEY-----')) {
+      formatted = '-----BEGIN PRIVATE KEY-----\n' + formatted;
+    }
+    if (!formatted.includes('-----END PRIVATE KEY-----')) {
+      formatted = formatted + '\n-----END PRIVATE KEY-----';
+    }
+    
+    // Validate the format
+    if (!formatted.match(/-----BEGIN PRIVATE KEY-----\n[\s\S]*\n-----END PRIVATE KEY-----/)) {
+      throw new Error('Invalid private key format');
+    }
+    
+    console.log('Private key formatted successfully, length:', formatted.length);
+    return formatted;
+  } catch (error) {
+    console.error('Error formatting private key:', error);
+    throw new Error('Failed to format private key');
   }
-  if (!formatted.includes('-----END PRIVATE KEY-----')) {
-    formatted = formatted + '\n-----END PRIVATE KEY-----';
-  }
-  
-  return formatted;
 }
 
-// Google Sheets API setup
-const auth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY ? formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY) : undefined,
-  },
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+// Helper function to create Google Auth
+function createGoogleAuth() {
+  try {
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error('GOOGLE_PRIVATE_KEY is not set');
+    }
+    
+    const formattedPrivateKey = formatPrivateKey(privateKey);
+    
+    return new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: formattedPrivateKey,
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+  } catch (error) {
+    console.error('Error creating Google Auth:', error);
+    throw error;
+  }
+}
 
-const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
 
 export async function POST(request: NextRequest) {
@@ -60,6 +91,9 @@ export async function POST(request: NextRequest) {
     const privateKeyLength = process.env.GOOGLE_PRIVATE_KEY?.length || 0;
     const hasNewlines = process.env.GOOGLE_PRIVATE_KEY?.includes('\\n') || false;
     const hasMarkers = process.env.GOOGLE_PRIVATE_KEY?.includes('-----BEGIN PRIVATE KEY-----') || false;
+    const hasEndMarkers = process.env.GOOGLE_PRIVATE_KEY?.includes('-----END PRIVATE KEY-----') || false;
+    const startsWithBegin = process.env.GOOGLE_PRIVATE_KEY?.startsWith('-----BEGIN PRIVATE KEY-----') || false;
+    const endsWithEnd = process.env.GOOGLE_PRIVATE_KEY?.endsWith('-----END PRIVATE KEY-----') || false;
     
     console.log('Environment variables loaded:', {
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'Set' : 'Missing',
@@ -67,8 +101,15 @@ export async function POST(request: NextRequest) {
       privateKeyLength,
       hasNewlines,
       hasMarkers,
+      hasEndMarkers,
+      startsWithBegin,
+      endsWithEnd,
       spreadsheetId: SPREADSHEET_ID ? 'Set' : 'Missing'
     });
+
+    // Create Google Auth and Sheets API client
+    const auth = createGoogleAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
 
     const orderData = await request.json();
     
