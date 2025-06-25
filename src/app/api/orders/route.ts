@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
+// Helper function to properly format private key
+function formatPrivateKey(privateKey: string): string {
+  // Remove any existing formatting
+  let formatted = privateKey.replace(/\\n/g, '\n');
+  
+  // Ensure it starts and ends with the proper markers
+  if (!formatted.includes('-----BEGIN PRIVATE KEY-----')) {
+    formatted = '-----BEGIN PRIVATE KEY-----\n' + formatted;
+  }
+  if (!formatted.includes('-----END PRIVATE KEY-----')) {
+    formatted = formatted + '\n-----END PRIVATE KEY-----';
+  }
+  
+  return formatted;
+}
+
 // Google Sheets API setup
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    private_key: process.env.GOOGLE_PRIVATE_KEY ? formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY) : undefined,
   },
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
@@ -40,9 +56,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log private key format for debugging (without exposing the actual key)
+    const privateKeyLength = process.env.GOOGLE_PRIVATE_KEY?.length || 0;
+    const hasNewlines = process.env.GOOGLE_PRIVATE_KEY?.includes('\\n') || false;
+    const hasMarkers = process.env.GOOGLE_PRIVATE_KEY?.includes('-----BEGIN PRIVATE KEY-----') || false;
+    
     console.log('Environment variables loaded:', {
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'Set' : 'Missing',
       privateKey: process.env.GOOGLE_PRIVATE_KEY ? 'Set' : 'Missing',
+      privateKeyLength,
+      hasNewlines,
+      hasMarkers,
       spreadsheetId: SPREADSHEET_ID ? 'Set' : 'Missing'
     });
 

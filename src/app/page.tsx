@@ -32,7 +32,7 @@ export default function Home() {
   const [orderSubmitted, setOrderSubmitted] = useState(false);
 
   const pizzaMenu = [
-    { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organictomato sauce" },
+    { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organic tomato sauce" },
     { id: "yoshi", name: "Yoshi's Weekly Special", price: 25, description: "Flavorful pepperoni with melted cheese, basil, and Italian seasoning" }
   ];
 

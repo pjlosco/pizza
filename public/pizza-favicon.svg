@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <style>
+      .pizza-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 80px; }
+    </style>
+  </defs>
+  <rect width="100" height="100" fill="#dc2626"/>
+  <text x="50" y="65" text-anchor="middle" class="pizza-emoji">🍕</text>
+</svg> 

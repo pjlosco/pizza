@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Losco's Pizzeria",
   description: "Order handcrafted pizza for pickup from Losco's Pizzeria. Fresh, authentic, and made with love!",
+  icons: {
+    icon: '/pizza-favicon.svg',
+  },
 };
 
 export default function RootLayout({
