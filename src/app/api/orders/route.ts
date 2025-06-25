@@ -4,8 +4,17 @@ import { google } from 'googleapis';
 // Helper function to properly format private key
 function formatPrivateKey(privateKey: string): string {
   try {
+    // Remove quotes from the beginning and end if they exist
+    let formatted = privateKey.trim();
+    if (formatted.startsWith('"') && formatted.endsWith('"')) {
+      formatted = formatted.slice(1, -1);
+    }
+    if (formatted.startsWith("'") && formatted.endsWith("'")) {
+      formatted = formatted.slice(1, -1);
+    }
+    
     // Remove any existing formatting and clean up
-    let formatted = privateKey
+    formatted = formatted
       .replace(/\\n/g, '\n')
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
@@ -14,17 +23,18 @@ function formatPrivateKey(privateKey: string): string {
     // Remove any extra whitespace between lines
     formatted = formatted.split('\n').map(line => line.trim()).join('\n');
     
-    // Always ensure it starts and ends with the proper markers
+    // If it already has markers, just return it cleaned up
+    if (formatted.includes('-----BEGIN PRIVATE KEY-----') && formatted.includes('-----END PRIVATE KEY-----')) {
+      console.log('Private key already has markers, using as-is');
+      return formatted;
+    }
+    
+    // If it doesn't have markers, add them
     if (!formatted.startsWith('-----BEGIN PRIVATE KEY-----')) {
       formatted = '-----BEGIN PRIVATE KEY-----\n' + formatted;
     }
     if (!formatted.endsWith('-----END PRIVATE KEY-----')) {
       formatted = formatted + '\n-----END PRIVATE KEY-----';
-    }
-    
-    // Validate the format
-    if (!formatted.match(/-----BEGIN PRIVATE KEY-----\n[\s\S]*\n-----END PRIVATE KEY-----/)) {
-      throw new Error('Invalid private key format');
     }
     
     console.log('Private key formatted successfully, length:', formatted.length);
