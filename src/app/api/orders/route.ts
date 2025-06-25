@@ -14,11 +14,11 @@ function formatPrivateKey(privateKey: string): string {
     // Remove any extra whitespace between lines
     formatted = formatted.split('\n').map(line => line.trim()).join('\n');
     
-    // Ensure it starts and ends with the proper markers
-    if (!formatted.includes('-----BEGIN PRIVATE KEY-----')) {
+    // Always ensure it starts and ends with the proper markers
+    if (!formatted.startsWith('-----BEGIN PRIVATE KEY-----')) {
       formatted = '-----BEGIN PRIVATE KEY-----\n' + formatted;
     }
-    if (!formatted.includes('-----END PRIVATE KEY-----')) {
+    if (!formatted.endsWith('-----END PRIVATE KEY-----')) {
       formatted = formatted + '\n-----END PRIVATE KEY-----';
     }
     
