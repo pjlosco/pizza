@@ -443,6 +443,17 @@ export default function Home() {
                   <span className="text-xl font-bold text-red-600">${getTotalPrice()}</span>
                 </div>
                 <p className="text-sm text-gray-800 mb-4">Payment: Cash on pickup</p>
+                
+                {/* SMS Consent Notice */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    📱 By placing this order, you consent to receive SMS notifications about your order status. 
+                    <a href="/consent" target="_blank" className="underline hover:text-blue-600 ml-1">
+                      View our SMS policy
+                    </a>
+                  </p>
+                </div>
+                
                 <button
                   type="submit"
                   className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"

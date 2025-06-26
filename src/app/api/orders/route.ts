@@ -177,6 +177,32 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('Order successfully appended to spreadsheet');
+
+    // Send SMS notification (don't block the order if SMS fails)
+    try {
+      const smsResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/notifications/sms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderDetails: {
+            items: orderData.items,
+            total: orderData.total
+          },
+          customerInfo: orderData.customer
+        }),
+      });
+
+      if (smsResponse.ok) {
+        console.log('SMS notification sent successfully');
+      } else {
+        console.log('SMS notification failed, but order was still saved');
+      }
+    } catch (smsError) {
+      console.log('SMS notification error (order still saved):', smsError);
+    }
+
     return NextResponse.json({ success: true, message: 'Order submitted successfully' });
   } catch (error) {
     console.error('Error submitting order:', error);

@@ -18,11 +18,22 @@
 - [ ] Sheet shared with service account email
 - [ ] Spreadsheet ID copied
 
+### ✅ SMS Notifications Setup (Optional)
+- [ ] Twilio account created
+- [ ] Twilio phone number purchased
+- [ ] Account SID and Auth Token copied
+- [ ] SMS notifications tested locally
+- [ ] Environment variables configured
+
 ### ✅ Environment Variables (Local)
 - [ ] `.env.local` file created
 - [ ] `GOOGLE_SERVICE_ACCOUNT_EMAIL` set
 - [ ] `GOOGLE_PRIVATE_KEY` set (with proper formatting)
 - [ ] `GOOGLE_SPREADSHEET_ID` set
+- [ ] `TWILIO_ACCOUNT_SID` set (if using SMS)
+- [ ] `TWILIO_AUTH_TOKEN` set (if using SMS)
+- [ ] `TWILIO_PHONE_NUMBER` set (if using SMS)
+- [ ] `BUSINESS_PHONE_NUMBER` set (if using SMS)
 - [ ] Local testing successful
 
 ### ✅ GitHub Repository
@@ -50,6 +61,10 @@
 - [ ] `GOOGLE_SERVICE_ACCOUNT_EMAIL` added
 - [ ] `GOOGLE_PRIVATE_KEY` added (with quotes and \n)
 - [ ] `GOOGLE_SPREADSHEET_ID` added
+- [ ] `TWILIO_ACCOUNT_SID` added (if using SMS)
+- [ ] `TWILIO_AUTH_TOKEN` added (if using SMS)
+- [ ] `TWILIO_PHONE_NUMBER` added (if using SMS)
+- [ ] `BUSINESS_PHONE_NUMBER` added (if using SMS)
 - [ ] All variables saved
 
 #### ✅ Deployment
@@ -84,6 +99,10 @@
 - [ ] `GOOGLE_SERVICE_ACCOUNT_EMAIL` added
 - [ ] `GOOGLE_PRIVATE_KEY` added (with quotes and \n)
 - [ ] `GOOGLE_SPREADSHEET_ID` added
+- [ ] `TWILIO_ACCOUNT_SID` added (if using SMS)
+- [ ] `TWILIO_AUTH_TOKEN` added (if using SMS)
+- [ ] `TWILIO_PHONE_NUMBER` added (if using SMS)
+- [ ] `BUSINESS_PHONE_NUMBER` added (if using SMS)
 - [ ] All variables saved
 
 #### ✅ Deployment
@@ -104,6 +123,7 @@
 - [ ] Order submission successful
 - [ ] Confirmation modal shows
 - [ ] Google Sheet updated
+- [ ] SMS notification received (if configured)
 
 ### ✅ Cross-Browser Testing
 - [ ] Chrome
