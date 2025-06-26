@@ -32,39 +32,47 @@ export default function Home() {
     specialRequests: ""
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Gallery images - add your pizza images to public/gallery/ directory
+  const galleryImages: string[] = [
+    '/gallery/italianmeat.jpeg',
+    '/gallery/pepperonibasil2.jpeg',
+    '/gallery/cooking.jpeg',
+    '/gallery/pepperonibasil.jpeg',
+    '/gallery/mushroompepper.jpeg',
+    '/gallery/sausagebasil.jpeg',
+    '/gallery/pepperoni.jpeg',
+    '/gallery/cheese.jpeg',
+  ];
 
   // Handle ESC key to close modals
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (orderSubmitted) {
-          setOrderSubmitted(false);
-          setCart([]);
-          setCustomerInfo({ 
-            name: "", 
-            phone: "", 
-            email: "", 
-            referralCode: "", 
-            orderDate: new Date().toISOString().split('T')[0],
-            specialRequests: ""
-          });
+        if (showCart) {
+          setShowCart(false);
         } else if (showOrderForm) {
           setShowOrderForm(false);
-        } else if (showCart) {
-          setShowCart(false);
+        } else if (orderSubmitted) {
+          setOrderSubmitted(false);
+          setCart([]);
+          setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date().toISOString().split('T')[0], specialRequests: "" });
+        } else if (selectedImage) {
+          setSelectedImage(null);
         }
       }
     };
 
     // Only add listener if any modal is open
-    if (showCart || showOrderForm || orderSubmitted) {
+    if (showCart || showOrderForm || orderSubmitted || selectedImage) {
       document.addEventListener('keydown', handleKeyDown);
     }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showCart, showOrderForm, orderSubmitted]);
+  }, [showCart, showOrderForm, orderSubmitted, selectedImage]);
 
   const pizzaMenu = [
     { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organic tomato sauce" },
@@ -237,6 +245,9 @@ export default function Home() {
             </div>
             <div className="hidden md:flex space-x-8">
               <a href="#menu" className="text-gray-700 hover:text-red-600 transition-colors">Menu</a>
+              {galleryImages.length > 0 && (
+                <a href="#gallery" className="text-gray-700 hover:text-red-600 transition-colors">Gallery</a>
+              )}
               <a href="#about" className="text-gray-700 hover:text-red-600 transition-colors">About</a>
               <a href="#contact" className="text-gray-700 hover:text-red-600 transition-colors">Contact</a>
             </div>
@@ -542,6 +553,58 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Gallery Section */}
+      {galleryImages.length > 0 && (
+        <section id="gallery" className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">Our Pizza Gallery</h2>
+              <p className="text-xl text-gray-600">See our handcrafted pizzas in all their delicious glory</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {galleryImages.map((image, index) => (
+                <div 
+                  key={index}
+                  className="group cursor-pointer overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                  onClick={() => setSelectedImage(image)}
+                >
+                  <div className="aspect-[4/3] overflow-hidden">
+                    <img
+                      src={image}
+                      alt={`Pizza ${index + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
+            >
+              ×
+            </button>
+            <img
+              src={selectedImage}
+              alt="Pizza"
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
 
       {/* About Section */}
       <section id="about" className="py-20 bg-gradient-to-br from-red-50 to-red-50">
