@@ -288,7 +288,7 @@ export default function Home() {
                   <div key={pizza.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <div>
                       <h4 className="font-semibold">{pizza.name}</h4>
-                      <p className="text-sm text-gray-600">${pizza.price}</p>
+                      <p className="text-sm text-gray-800">${pizza.price}</p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
@@ -355,7 +355,7 @@ export default function Home() {
             
             <form onSubmit={handleOrderSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Name *</label>
                 <input
                   type="text"
                   required
@@ -366,7 +366,7 @@ export default function Home() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Phone *</label>
                 <input
                   type="tel"
                   required
@@ -379,7 +379,7 @@ export default function Home() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Pickup Date *</label>
                 <input
                   type="date"
                   required
@@ -389,11 +389,11 @@ export default function Home() {
                   max={new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
-                <p className="text-sm text-gray-500 mt-1">Select a date between today and 4 weeks from now (Sundays not available)</p>
+                <p className="text-sm text-gray-700 mt-1">Select a date between today and 4 weeks from now (Sundays not available)</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Email *</label>
                 <input
                   type="email"
                   required
@@ -404,7 +404,7 @@ export default function Home() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Referral Code *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Referral Code *</label>
                 <input
                   type="text"
                   required
@@ -416,12 +416,11 @@ export default function Home() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
-                <p className="text-sm text-gray-500 mt-1">Let us know if you have any special requests or dietary restrictions</p>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Special Requests</label>
                 <textarea
                   value={customerInfo.specialRequests}
                   onChange={(e) => setCustomerInfo({...customerInfo, specialRequests: e.target.value})}
-                  placeholder="Any special requests or notes for your order..."
+                  placeholder="Any special requests, notes, or dietary restrictions for your order..."
                   rows={3}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
@@ -432,7 +431,7 @@ export default function Home() {
                   <span className="text-lg font-semibold">Total:</span>
                   <span className="text-xl font-bold text-red-600">${getTotalPrice()}</span>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">Payment: Cash on pickup</p>
+                <p className="text-sm text-gray-800 mb-4">Payment: Cash on pickup</p>
                 <button
                   type="submit"
                   className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
@@ -451,13 +450,13 @@ export default function Home() {
           <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center">
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-2xl font-bold mb-4">Order Confirmed!</h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-800 mb-6">
               Thank you for your order!<br />
               We'll text you at {customerInfo.phone} when your pizza is assigned a pick up time and again when it's ready for pickup.
             </p>
             <div className="bg-red-50 p-4 rounded-lg mb-6">
               <p className="font-semibold">Order Total: ${getTotalPrice()}</p>
-              <p className="text-sm text-gray-600">Pay with cash upon pickup</p>
+              <p className="text-sm text-gray-800">Pay with cash upon pickup</p>
             </div>
             <button
               onClick={() => {
