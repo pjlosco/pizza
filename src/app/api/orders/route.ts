@@ -99,6 +99,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const orderData = await request.json();
+    
+    // Create a unique order identifier for duplicate detection
+    const orderIdentifier = `${orderData.customer.phone}-${orderData.customer.orderDate}-${orderData.total}-${orderData.items.map((item: any) => `${item.name}(${item.quantity})`).join(',')}`;
+    
+    console.log('Order identifier for duplicate detection:', orderIdentifier);
+    
     // Log private key format for debugging (without exposing the actual key)
     const privateKeyLength = process.env.GOOGLE_PRIVATE_KEY?.length || 0;
     const hasNewlines = process.env.GOOGLE_PRIVATE_KEY?.includes('\\n') || false;
@@ -148,7 +155,47 @@ export async function POST(request: NextRequest) {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const orderData = await request.json();
+    // Check for recent duplicate orders (within last 5 minutes)
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      console.log('Checking for duplicate orders since:', fiveMinutesAgo);
+      
+      const recentOrders = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'A:J',
+      });
+      
+      if (recentOrders.data.values) {
+        const recentOrderRows = recentOrders.data.values.slice(-10); // Check last 10 orders
+        for (const row of recentOrderRows) {
+          if (row.length >= 8) {
+            const orderTime = row[0]; // Timestamp
+            const customerPhone = row[2]; // Phone
+            const orderDate = row[3]; // Order date
+            const total = row[7]; // Total
+            
+            // Check if this is a recent duplicate
+            if (orderTime && new Date(orderTime) > new Date(fiveMinutesAgo) &&
+                customerPhone === orderData.customer.phone &&
+                orderDate === orderData.customer.orderDate &&
+                total === `$${orderData.total}`) {
+              console.log('Duplicate order detected:', {
+                orderTime,
+                customerPhone,
+                orderDate,
+                total
+              });
+              return NextResponse.json(
+                { success: false, message: 'Duplicate order detected. Please wait a moment before trying again.' },
+                { status: 409 }
+              );
+            }
+          }
+        }
+      }
+    } catch (duplicateCheckError) {
+      console.log('Duplicate check failed, proceeding with order:', duplicateCheckError);
+    }
     
     // Format order data for spreadsheet
     const orderRow = [
@@ -179,29 +226,52 @@ export async function POST(request: NextRequest) {
     console.log('Order successfully appended to spreadsheet');
 
     // Send SMS notification (don't block the order if SMS fails)
+    console.log('=== SMS NOTIFICATION DEBUG ===');
+    console.log('Attempting to send SMS notification...');
+    console.log('Base URL:', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001');
+    
     try {
-      const smsResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/notifications/sms`, {
+      const smsUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/notifications/sms`;
+      console.log('SMS URL:', smsUrl);
+      
+      const smsPayload = {
+        orderDetails: {
+          items: orderData.items,
+          total: orderData.total
+        },
+        customerInfo: orderData.customer
+      };
+      console.log('SMS Payload:', JSON.stringify(smsPayload, null, 2));
+      
+      const smsResponse = await fetch(smsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          orderDetails: {
-            items: orderData.items,
-            total: orderData.total
-          },
-          customerInfo: orderData.customer
-        }),
+        body: JSON.stringify(smsPayload),
       });
 
+      console.log('SMS Response status:', smsResponse.status);
+      console.log('SMS Response ok:', smsResponse.ok);
+      
       if (smsResponse.ok) {
+        const smsResult = await smsResponse.json();
+        console.log('SMS Response data:', smsResult);
         console.log('SMS notification sent successfully');
       } else {
-        console.log('SMS notification failed, but order was still saved');
+        const errorText = await smsResponse.text();
+        console.log('SMS notification failed with status:', smsResponse.status);
+        console.log('SMS error response:', errorText);
       }
     } catch (smsError) {
       console.log('SMS notification error (order still saved):', smsError);
+      console.log('Error details:', {
+        name: (smsError as Error).name,
+        message: (smsError as Error).message,
+        stack: (smsError as Error).stack
+      });
     }
+    console.log('=== END SMS DEBUG ===');
 
     return NextResponse.json({ success: true, message: 'Order submitted successfully' });
   } catch (error) {

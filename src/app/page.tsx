@@ -33,6 +33,7 @@ export default function Home() {
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   // Gallery images - add your pizza images to public/gallery/ directory
   const galleryImages: string[] = [
@@ -189,6 +190,12 @@ export default function Home() {
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent duplicate submissions
+    if (isSubmittingOrder) {
+      console.log('Order submission already in progress, ignoring duplicate click');
+      return;
+    }
+    
     // Validate phone number
     if (!validatePhoneNumber(customerInfo.phone)) {
       alert("Please enter a valid 10-digit phone number.");
@@ -201,6 +208,9 @@ export default function Home() {
       return;
     }
     
+    // Set submitting state to prevent duplicates
+    setIsSubmittingOrder(true);
+    
     // Prepare order data
     const orderDetails = {
       customer: customerInfo,
@@ -210,6 +220,8 @@ export default function Home() {
     };
     
     try {
+      console.log('Submitting order...', orderDetails);
+      
       // Submit order to API
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -226,11 +238,18 @@ export default function Home() {
         setShowOrderForm(false);
         console.log("Order submitted successfully:", orderDetails);
       } else {
-        alert("Failed to submit order. Please try again.");
+        if (response.status === 409) {
+          alert("Duplicate order detected. Please wait a moment before trying again.");
+        } else {
+          alert("Failed to submit order. Please try again.");
+        }
       }
     } catch (error) {
       console.error('Error submitting order:', error);
       alert("Failed to submit order. Please try again.");
+    } finally {
+      // Reset submitting state
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -456,9 +475,20 @@ export default function Home() {
                 
                 <button
                   type="submit"
-                  className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
+                  disabled={isSubmittingOrder}
+                  className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  Place Order
+                  {isSubmittingOrder ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing Order...
+                    </>
+                  ) : (
+                    'Place Order'
+                  )}
                 </button>
               </div>
             </form>
