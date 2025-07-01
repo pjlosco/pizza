@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       
       const recentOrders = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: 'A:J',
+        range: 'A:M',
       });
       
       if (recentOrders.data.values) {
@@ -197,6 +197,15 @@ export async function POST(request: NextRequest) {
       console.log('Duplicate check failed, proceeding with order:', duplicateCheckError);
     }
     
+    // Format payment information
+    const paymentMethod = orderData.paymentInfo?.type === 'card' 
+      ? `Credit Card${orderData.paymentInfo.cardLast4 ? ` ending in ${orderData.paymentInfo.cardLast4}` : ''}`
+      : 'Cash on pickup';
+    
+    const paymentStatus = orderData.paymentInfo?.type === 'card' 
+      ? (orderData.paymentInfo.paymentId ? 'Paid' : 'Failed')
+      : 'Cash on pickup';
+
     // Format order data for spreadsheet
     const orderRow = [
       new Date().toISOString(), // Timestamp
@@ -207,8 +216,11 @@ export async function POST(request: NextRequest) {
       orderData.customer.referralCode,
       orderData.items.map((item: any) => `${item.name} (${item.quantity})`).join(', '),
       `$${orderData.total}`,
-      'Pending', // Status
+      'Pending', // Order Status
       orderData.customer.specialRequests || '', // Notes - Special Requests
+      paymentMethod, // Payment Method
+      paymentStatus, // Payment Status
+      orderData.paymentInfo?.paymentId || '', // Payment ID (for card payments)
     ];
 
     console.log('Attempting to append to spreadsheet:', SPREADSHEET_ID);
@@ -216,7 +228,7 @@ export async function POST(request: NextRequest) {
     // Append order to Google Sheet
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'A:J', // Use first worksheet
+      range: 'A:M', // Use first worksheet
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [orderRow],
