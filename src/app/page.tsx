@@ -27,6 +27,7 @@ interface CustomerInfo {
   email: string;
   referralCode: string;
   orderDate: string;
+  pickupTime: string;
   specialRequests: string;
 }
 
@@ -53,7 +54,8 @@ export default function Home() {
     phone: "",
     email: "",
     referralCode: "",
-    orderDate: new Date().toISOString().split('T')[0],
+    orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+    pickupTime: "",
     specialRequests: ""
   });
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
@@ -64,6 +66,10 @@ export default function Home() {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [squareLoaded, setSquareLoaded] = useState(false);
   const [cardPaymentForm, setCardPaymentForm] = useState<any>(null);
+  const [dateFieldError, setDateFieldError] = useState(false);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<{value: string, display: string}[]>([]);
+  const [timeSlotCache, setTimeSlotCache] = useState<{[date: string]: {value: string, display: string}[]}>({}); 
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
 
   // Load Square Web SDK
   // Track which Square environment was loaded
@@ -150,6 +156,16 @@ export default function Home() {
       }
     }
   }, [squareLoaded, squareEnvironment, paymentInfo.type, showOrderForm, cardPaymentForm]);
+
+  // Fetch available time slots when the order form opens
+  useEffect(() => {
+    if (showOrderForm && customerInfo.orderDate) {
+      // Only fetch if it's not Sunday (invalid date)
+      if (!isSunday(customerInfo.orderDate)) {
+        fetchAvailableTimeSlots(customerInfo.orderDate);
+      }
+    }
+  }, [showOrderForm]);
 
   const initializeSquarePaymentForm = async () => {
     if (!window.Square) {
@@ -266,6 +282,7 @@ export default function Home() {
     '/gallery/sausagebasil.jpeg',
     '/gallery/pepperoni.jpeg',
     '/gallery/cheese.jpeg',
+    '/gallery/ovenpizza.jpeg',
   ];
 
   // Handle ESC key to close modals
@@ -281,7 +298,8 @@ export default function Home() {
         } else if (orderSubmitted) {
           setOrderSubmitted(false);
           setCart([]);
-          setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date().toISOString().split('T')[0], specialRequests: "" });
+          setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], pickupTime: "", specialRequests: "" });
+          setDateFieldError(false);
         } else if (selectedImage) {
           setSelectedImage(null);
         }
@@ -390,23 +408,121 @@ export default function Home() {
     setCustomerInfo({...customerInfo, phone: formatted});
   };
 
-  // Function to disable Sundays in date picker
-  const disableSundays = (dateString: string) => {
-    const date = new Date(dateString);
-    const dayOfWeek = date.getDay();
-    return dayOfWeek === 0; // 0 = Sunday
+  // Function to check if a date is Sunday
+  const isSunday = (dateString: string) => {
+    // Parse date string as local date to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.getDay() === 0; // 0 = Sunday
+  };
+
+  // Function to check if a date is today
+  const isToday = (dateString: string) => {
+    // Parse date string as local date to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // Function to disable current day and Sundays in date picker
+  const isDateDisabled = (dateString: string) => {
+    return isToday(dateString) || isSunday(dateString);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = e.target.value;
-    if (disableSundays(selectedDate)) {
-      // If Sunday is selected, find the next Monday
+    
+    // Check if Sunday is selected and set error state
+    if (isSunday(selectedDate)) {
+      setDateFieldError(true);
+      setCustomerInfo({...customerInfo, orderDate: selectedDate, pickupTime: ""});
+      setAvailableTimeSlots([]); // Clear time slots for invalid date
+    } else if (isToday(selectedDate)) {
+      // If today is selected, automatically jump to next available day
       const date = new Date(selectedDate);
-      date.setDate(date.getDate() + 1);
-      const nextMonday = date.toISOString().split('T')[0];
-      setCustomerInfo({...customerInfo, orderDate: nextMonday});
+      do {
+        date.setDate(date.getDate() + 1);
+      } while (isDateDisabled(date.toISOString().split('T')[0]));
+      
+      const nextAvailableDate = date.toISOString().split('T')[0];
+      setDateFieldError(false);
+      setCustomerInfo({...customerInfo, orderDate: nextAvailableDate, pickupTime: ""});
+      
+      // Fetch available time slots for the auto-selected date
+      fetchAvailableTimeSlots(nextAvailableDate);
     } else {
-      setCustomerInfo({...customerInfo, orderDate: selectedDate});
+      // Valid date selected
+      setDateFieldError(false);
+      setCustomerInfo({...customerInfo, orderDate: selectedDate, pickupTime: ""});
+      
+      // Fetch available time slots for the selected date
+      fetchAvailableTimeSlots(selectedDate);
+    }
+  };
+
+  // Generate time options for pickup (4 PM - 8 PM with 20-minute increments)
+  const generateTimeOptions = () => {
+    const times = [];
+    const startHour = 16; // 4 PM
+    const endHour = 20; // 8 PM
+    
+    for (let hour = startHour; hour <= endHour; hour++) {
+      for (let minutes = 0; minutes < 60; minutes += 20) {
+        // Don't add 8:20 PM or 8:40 PM - stop at 8:00 PM
+        if (hour === endHour && minutes > 0) break;
+        
+        const timeString = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        const displayTime = new Date(`2000-01-01T${timeString}`).toLocaleTimeString([], { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+        times.push({ value: timeString, display: displayTime });
+      }
+    }
+    
+    return times;
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCustomerInfo({...customerInfo, pickupTime: e.target.value});
+  };
+
+  // Fetch available time slots for a specific date
+  const fetchAvailableTimeSlots = async (date: string) => {
+    // Check cache first
+    if (timeSlotCache[date]) {
+      setAvailableTimeSlots(timeSlotCache[date]);
+      return;
+    }
+
+    setLoadingTimeSlots(true);
+    try {
+      const response = await fetch(`/api/available-times?date=${date}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        const slots = result.availableTimeSlots;
+        
+        // Update cache
+        setTimeSlotCache(prev => ({
+          ...prev,
+          [date]: slots
+        }));
+        
+        setAvailableTimeSlots(slots);
+      } else {
+        console.error('Failed to fetch available time slots:', result.message);
+        // Fallback to all time slots if API fails
+        setAvailableTimeSlots(generateTimeOptions());
+      }
+    } catch (error) {
+      console.error('Error fetching available time slots:', error);
+      // Fallback to all time slots if API fails
+      setAvailableTimeSlots(generateTimeOptions());
+    } finally {
+      setLoadingTimeSlots(false);
     }
   };
 
@@ -424,9 +540,32 @@ export default function Home() {
       return;
     }
     
-    // Validate that the selected date is not a Sunday
-    if (disableSundays(customerInfo.orderDate)) {
-      alert("Sorry, we are closed on Sundays. Please select a different pickup date.");
+    // Validate that Sunday is not selected
+    if (isSunday(customerInfo.orderDate)) {
+      setDateFieldError(true);
+      alert("Sorry, we are closed on Sundays. Please select a different pickup date from Monday-Saturday.");
+      return;
+    }
+    
+    // Validate that today is not selected
+    if (isToday(customerInfo.orderDate)) {
+      setDateFieldError(true);
+      alert("Sorry, we don't accept same-day orders. Please select a pickup date at least 1 day in advance.");
+      return;
+    }
+    
+    // Validate pickup time is selected
+    if (!customerInfo.pickupTime) {
+      alert("Please select a pickup time.");
+      return;
+    }
+
+    // Validate that the selected time is still available (in case someone else booked it)
+    if (availableTimeSlots.length > 0 && !availableTimeSlots.some(slot => slot.value === customerInfo.pickupTime)) {
+      alert("The selected pickup time is no longer available. Please select a different time.");
+      // Clear the selected time and refresh available slots
+      setCustomerInfo({...customerInfo, pickupTime: ""});
+      fetchAvailableTimeSlots(customerInfo.orderDate);
       return;
     }
     
@@ -690,7 +829,11 @@ export default function Home() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold">Complete Your Order</h3>
               <button 
-                onClick={() => setShowOrderForm(false)}
+                onClick={() => {
+                  setShowOrderForm(false);
+                  setDateFieldError(false);
+                  setAvailableTimeSlots([]);
+                }}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ×
@@ -712,7 +855,7 @@ export default function Home() {
                   required
                   value={customerInfo.name}
                   onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               
@@ -725,22 +868,87 @@ export default function Home() {
                   value={customerInfo.phone}
                   onChange={handlePhoneChange}
                   placeholder="(555) 123-4567"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Pickup Date *</label>
+                <label className={`block text-sm font-medium mb-1 ${dateFieldError ? 'text-red-600' : 'text-gray-900'}`}>
+                  Pickup Date *
+                </label>
                 <input
                   type="date"
                   required
                   value={customerInfo.orderDate}
                   onChange={handleDateChange}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   max={new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+                    dateFieldError 
+                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                      : 'border-gray-300 focus:ring-red-500'
+                  }`}
                 />
-                <p className="text-sm text-gray-700 mt-1">Select a date between today and 4 weeks from now (Sundays not available)</p>
+                {dateFieldError && (
+                  <p className="text-sm text-red-600 mt-1 font-medium">
+                    ⚠️ We are closed on Sundays. Please select Monday-Saturday.
+                  </p>
+                )}
+                {!dateFieldError && (
+                  <p className="text-sm text-gray-700 mt-1">Open Monday-Saturday, 4:00 PM - 8:00 PM • Orders must be placed 1 day in advance</p>
+                )}
+              </div>
+              
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-900">Pickup Time *</label>
+                  {customerInfo.orderDate && !isSunday(customerInfo.orderDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Clear cache for this date and refresh
+                        const newCache = { ...timeSlotCache };
+                        delete newCache[customerInfo.orderDate];
+                        setTimeSlotCache(newCache);
+                        fetchAvailableTimeSlots(customerInfo.orderDate);
+                      }}
+                      disabled={loadingTimeSlots}
+                      className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    >
+                      🔄 Refresh
+                    </button>
+                  )}
+                </div>
+                <select
+                  required
+                  value={customerInfo.pickupTime}
+                  onChange={handleTimeChange}
+                  disabled={loadingTimeSlots || availableTimeSlots.length === 0}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {loadingTimeSlots 
+                      ? "Loading available times..." 
+                      : availableTimeSlots.length === 0 
+                        ? "No times available (select a date first)"
+                        : "Select a pickup time"
+                    }
+                  </option>
+                  {availableTimeSlots.map((time) => (
+                    <option key={time.value} value={time.value}>
+                      {time.display}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-gray-700 mt-1">
+                  Operating hours: 4:00 PM - 8:00 PM (20-minute intervals)
+                  {availableTimeSlots.length > 0 && (
+                    <span className="text-green-600 ml-1">• {availableTimeSlots.length} slots available</span>
+                  )}
+                  {!loadingTimeSlots && availableTimeSlots.length === 0 && customerInfo.orderDate && !isSunday(customerInfo.orderDate) && (
+                    <span className="text-red-600 ml-1">• All slots booked for this date</span>
+                  )}
+                </p>
               </div>
               
               <div>
@@ -750,7 +958,7 @@ export default function Home() {
                   required
                   value={customerInfo.email}
                   onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               
@@ -762,7 +970,7 @@ export default function Home() {
                   value={customerInfo.referralCode}
                   onChange={(e) => setCustomerInfo({...customerInfo, referralCode: e.target.value})}
                   placeholder="Enter referral code"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               
@@ -773,7 +981,7 @@ export default function Home() {
                   onChange={(e) => setCustomerInfo({...customerInfo, specialRequests: e.target.value})}
                   placeholder="Any special requests, notes, or dietary restrictions for your order..."
                   rows={3}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
@@ -881,7 +1089,11 @@ export default function Home() {
             <h3 className="text-2xl font-bold mb-4">Order Confirmed!</h3>
             <p className="text-gray-800 mb-6">
               Thank you for your order!<br />
-              We'll text you at {customerInfo.phone} when your pizza is assigned a pick up time and again when it's ready for pickup.
+              Pickup time: {new Date(`2000-01-01T${customerInfo.pickupTime}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })} on {(() => {
+                const [year, month, day] = customerInfo.orderDate.split('-').map(Number);
+                return new Date(year, month - 1, day).toLocaleDateString();
+              })()}<br />
+              We'll text you at {customerInfo.phone} with order updates and when it's ready for pickup.
             </p>
             <div className="bg-red-50 p-4 rounded-lg mb-6">
               <p className="font-semibold">Order Total: ${getTotalPrice()}</p>
@@ -900,9 +1112,12 @@ export default function Home() {
               onClick={() => {
                 setOrderSubmitted(false);
                 setCart([]);
-                setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date().toISOString().split('T')[0], specialRequests: "" });
+                setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], pickupTime: "", specialRequests: "" });
                 setPaymentInfo({ type: 'cash' });
                 setCardPaymentForm(null);
+                setDateFieldError(false);
+                setAvailableTimeSlots([]);
+                setTimeSlotCache({});
               }}
               className="w-full bg-red-600 text-white py-3 rounded-full font-semibold hover:bg-red-700 transition-colors"
             >
@@ -914,7 +1129,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 lg:py-11">
           {/* Pickup Only Notice */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium">
@@ -943,10 +1158,19 @@ export default function Home() {
               </div>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-red-400 to-red-500 rounded-full w-96 h-96 mx-auto flex items-center justify-center shadow-2xl">
-                <div className="text-white text-center">
-                  <div className="text-8xl mb-4">🍕</div>
-                  <p className="text-xl font-semibold">Fresh from the Oven</p>
+              <div className="relative rounded-full w-96 h-96 mx-auto shadow-2xl overflow-hidden">
+                <Image
+                  src="/gallery/ovenpizza.jpeg"
+                  alt="Fresh pizza from the oven"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 320px, 384px"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-center pb-8">
+                  <p className="text-white text-xl font-semibold text-center drop-shadow-lg">
+                    Fresh from the Oven
+                  </p>
                 </div>
               </div>
             </div>

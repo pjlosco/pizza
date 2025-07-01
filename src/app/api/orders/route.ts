@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       
       const recentOrders = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: 'A:M',
+        range: 'A:N',
       });
       
       if (recentOrders.data.values) {
@@ -206,12 +206,22 @@ export async function POST(request: NextRequest) {
       ? (orderData.paymentInfo.paymentId ? 'Paid' : 'Failed')
       : 'Cash on pickup';
 
+    // Format pickup time for display
+    const pickupTimeFormatted = orderData.customer.pickupTime 
+      ? new Date(`2000-01-01T${orderData.customer.pickupTime}`).toLocaleTimeString([], { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        })
+      : '';
+
     // Format order data for spreadsheet
     const orderRow = [
       new Date().toISOString(), // Timestamp
       orderData.customer.name,
       orderData.customer.phone,
       orderData.customer.orderDate,
+      pickupTimeFormatted, // Pickup Time
       orderData.customer.email,
       orderData.customer.referralCode,
       orderData.items.map((item: any) => `${item.name} (${item.quantity})`).join(', '),
@@ -228,7 +238,7 @@ export async function POST(request: NextRequest) {
     // Append order to Google Sheet
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'A:M', // Use first worksheet
+      range: 'A:N', // Use first worksheet
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [orderRow],
