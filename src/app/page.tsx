@@ -1188,19 +1188,72 @@ export default function Home() {
           
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {pizzaMenu.map((pizza) => (
-              <div key={pizza.id} className="bg-gradient-to-br from-red-50 to-red-50 rounded-2xl p-8 hover:shadow-xl transition-shadow">
-                <div className="text-6xl mb-4">🍕</div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{pizza.name}</h3>
-                <p className="text-gray-600 mb-4">{pizza.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-red-600">${pizza.price}</span>
-                  <button 
-                    onClick={() => addToCart(pizza)}
-                    className="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors"
-                  >
-                    Add to Order
-                  </button>
-                </div>
+              <div key={pizza.id} className={`rounded-2xl p-8 hover:shadow-xl transition-shadow ${
+                pizza.id === "margherita" || pizza.id === "yoshi"
+                  ? "relative overflow-hidden" 
+                  : "bg-gradient-to-br from-red-50 to-red-50"
+              }`}>
+                {pizza.id === "margherita" ? (
+                  <>
+                    {/* Background image for Classic Margherita */}
+                    <div className="absolute inset-0 z-0">
+                      <img
+                        src="/cheese2.jpg"
+                        alt="Classic Margherita Pizza"
+                        className="w-full h-full object-cover scale-125"
+                      />
+                    </div>
+                    {/* Content with white background for readability - positioned lower */}
+                    <div className="relative z-10 bg-white bg-opacity-95 rounded-xl p-6 -m-2 mt-16">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{pizza.name}</h3>
+                      <p className="text-gray-600 mb-4">{pizza.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-2xl font-bold text-red-600">${pizza.price}</span>
+                        <button 
+                          onClick={() => addToCart(pizza)}
+                          className="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors"
+                        >
+                          Add to Order
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Background image for Yoshi's Weekly Special */}
+                    <div className="absolute inset-0 z-0">
+                      <img
+                        src="/gallery/pepperonibasil.jpeg"
+                        alt="Yoshi's Weekly Special Pizza"
+                        className="w-full h-full object-cover scale-125"
+                      />
+                    </div>
+                    {/* Yoshi image in top right */}
+                    <div className="absolute top-8 right-4 z-20">
+                      <div className="relative rounded-full w-24 h-24 shadow-lg overflow-hidden bg-red-600">
+                        <img
+                          src="/yoshi.png"
+                          alt="Yoshi"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    {/* Content with white background for readability - positioned lower */}
+                    <div className="relative z-10 bg-white bg-opacity-95 rounded-xl p-6 -m-2 mt-16">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{pizza.name}</h3>
+                      <p className="text-gray-600 mb-4">{pizza.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-2xl font-bold text-red-600">${pizza.price}</span>
+                        <button 
+                          onClick={() => addToCart(pizza)}
+                          className="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors"
+                        >
+                          Add to Order
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
