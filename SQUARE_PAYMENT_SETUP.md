@@ -35,17 +35,31 @@ This document outlines how to set up Square payment processing for the pizza ord
 
 Add the following environment variables to your `.env.local` file:
 
+#### For Sandbox (Development)
 ```bash
-# Square Payment Settings
+# Square Payment Settings - Sandbox (3 variables)
 SQUARE_ENVIRONMENT=sandbox
 SQUARE_ACCESS_TOKEN=your_sandbox_access_token_here
 NEXT_PUBLIC_SQUARE_APPLICATION_ID=your_sandbox_application_id_here
-
-# For production, change to:
-# SQUARE_ENVIRONMENT=production
-# SQUARE_ACCESS_TOKEN=your_production_access_token_here
-# NEXT_PUBLIC_SQUARE_APPLICATION_ID=your_production_application_id_here
 ```
+
+#### For Production (Live)
+```bash
+# Square Payment Settings - Production (4 variables)
+SQUARE_ENVIRONMENT=production
+SQUARE_ACCESS_TOKEN=your_production_access_token_here
+NEXT_PUBLIC_SQUARE_APPLICATION_ID=your_production_application_id_here
+NEXT_PUBLIC_SQUARE_LOCATION_ID=your_production_location_id_here
+```
+
+### Finding Your Location ID
+
+1. In your Square Developer Dashboard, go to your application
+2. Navigate to either "Sandbox" or "Production" 
+3. Click on "Locations" in the left sidebar
+4. Copy the Location ID for your business location
+
+**Note**: Each environment (sandbox/production) has different location IDs.
 
 **Important:** 
 - Keep your access tokens secure and never commit them to version control
@@ -70,12 +84,15 @@ For sandbox testing, use these test card numbers:
 
 Before going live:
 
-1. Switch environment variables to production values
-2. Test thoroughly in sandbox first
-3. Ensure SSL/HTTPS is enabled on your domain
-4. Update the Square Web SDK URL from sandbox to production:
-   - Change `https://sandbox-web.squarecdn.com/v1/square.js`
-   - To `https://web.squarecdn.com/v1/square.js`
+1. Switch environment variables to production values (see production example above)
+2. Get your production location ID from Square Dashboard
+3. Test thoroughly in sandbox first
+4. Ensure SSL/HTTPS is enabled on your domain
+
+**How Environment Detection Works:**
+- **Backend**: Uses the `SQUARE_ENVIRONMENT` variable to determine API endpoints and location
+- **Frontend**: Auto-detects from Application ID prefix (`sandbox-` = sandbox, `sq0idp-` = production)
+- This hybrid approach ensures proper environment separation while maintaining simplicity
 
 ### 6. Security Considerations
 

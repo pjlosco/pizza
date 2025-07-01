@@ -117,12 +117,13 @@ export default function Home() {
         document.head.appendChild(script);
       };
 
-      // Try sandbox SDK URL first, then fallback to production SDK
-      // This might resolve the environment mismatch error
-      const squareUrls = [
-        'https://sandbox.web.squarecdn.com/v1/square.js', // Try sandbox SDK first
-        'https://web.squarecdn.com/v1/square.js', // Fallback to production SDK
-      ];
+      // Determine environment from Application ID (since SQUARE_ENVIRONMENT is server-only)
+      const applicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-demo-app-id';
+      const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
+      
+      const squareUrls = environment === 'production'
+        ? ['https://web.squarecdn.com/v1/square.js'] // Production SDK
+        : ['https://sandbox.web.squarecdn.com/v1/square.js', 'https://web.squarecdn.com/v1/square.js']; // Sandbox first, then fallback
       
       tryLoadSquare(squareUrls);
       
@@ -224,8 +225,11 @@ export default function Home() {
     }
 
     try {
-      // Include location ID for proper environment detection
-      const locationId = 'L8SFFEWCCGKF3';
+      // Determine environment from Application ID and use appropriate location ID
+      const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
+      const locationId = environment === 'production'
+        ? process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || 'PRODUCTION_LOCATION_ID_NEEDED'
+        : 'L8SFFEWCCGKF3'; // Sandbox location ID
       
       // Initialize Square payments - SDK auto-detects environment from application ID
       const payments = window.Square.payments(applicationId, locationId);

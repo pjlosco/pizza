@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
       ? 'https://connect.squareup.com' 
       : 'https://connect.squareupsandbox.com';
 
+    // Use environment-appropriate location ID
+    const locationId = environment === 'production'
+      ? process.env.SQUARE_LOCATION_ID || 'PRODUCTION_LOCATION_ID_NEEDED'
+      : 'L8SFFEWCCGKF3'; // Sandbox location ID
+
     // Create payment request
     const paymentData = {
       source_id: sourceId,
@@ -39,7 +44,7 @@ export async function POST(request: NextRequest) {
         amount: Math.round(amount * 100), // Convert to cents
         currency: 'USD'
       },
-      location_id: 'L8SFFEWCCGKF3', // Your sandbox location ID
+      location_id: locationId,
       idempotency_key: uuidv4(),
       note: `Pizza order for ${customerInfo?.name || 'Customer'}`,
       buyer_email_address: customerInfo?.email,
