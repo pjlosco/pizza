@@ -250,10 +250,10 @@ export async function POST(request: NextRequest) {
     // Send SMS notification (don't block the order if SMS fails)
     console.log('=== SMS NOTIFICATION DEBUG ===');
     console.log('Attempting to send SMS notification...');
-    console.log('Base URL:', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001');
+    console.log('Base URL:', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
     
     try {
-      const smsUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/notifications/sms`;
+      const smsUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notifications/sms`;
       console.log('SMS URL:', smsUrl);
       
       const smsPayload = {

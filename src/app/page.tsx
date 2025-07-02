@@ -1410,13 +1410,13 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4 text-green-200">Hours</h4>
               <div className="space-y-2 text-green-100">
-                <p>Mon-Sat: 4PM - 7PM</p>
+                <p>Mon-Sat: 4PM - 8PM</p>
                 <p>Sunday: Closed</p>
               </div>
             </div>
           </div>
           <div className="border-t border-green-700 mt-8 pt-8 text-center text-green-200">
-            <p>&copy; 2024 Losco's Pizzeria. All rights reserved.</p>
+            <p>&copy; 2025 Losco's Pizzeria. All rights reserved.</p>
           </div>
         </div>
       </footer>

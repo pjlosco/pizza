@@ -62,18 +62,8 @@ export async function POST(request: NextRequest) {
     ).join(', ');
 
     const message = `🍕 NEW ORDER RECEIVED!
-
-Customer: ${customerInfo.name}
-Phone: ${customerInfo.phone}
-Email: ${customerInfo.email}
-Pickup Date: ${customerInfo.orderDate}
-
-Order: ${pizzaItems}
-Total: $${orderDetails.total}
-
-Special Requests: ${customerInfo.specialRequests || 'None'}
-
-Referral Code: ${customerInfo.referralCode}`;
+${customerInfo.name} ${customerInfo.phone} ${customerInfo.orderDate}
+$${orderDetails.total}`;
 
     console.log('Sending SMS with details:', {
       from: formattedFromNumber,

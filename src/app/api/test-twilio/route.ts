@@ -63,15 +63,8 @@ export async function GET() {
       formattedTo: formattedToNumber
     });
 
-    // Test message
-    const testMessage = `🧪 Twilio Test Message
-
-This is a test message from Losco's Pizzeria SMS system.
-
-Time: ${new Date().toLocaleString()}
-Status: Testing SMS functionality
-
-If you receive this, SMS notifications are working!`;
+    // Test message - short for trial account
+    const testMessage = `🧪 Test: Losco's Pizzeria SMS working! ${new Date().toLocaleTimeString()}`;
 
     console.log('Sending test SMS...');
     console.log('From:', formattedFromNumber);
