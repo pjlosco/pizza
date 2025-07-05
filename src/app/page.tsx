@@ -82,12 +82,7 @@ export default function Home() {
       // Try loading Square SDK with fallback URLs
       const tryLoadSquare = (urls: string[], index = 0): void => {
         if (index >= urls.length) {
-          console.error('All Square SDK URLs failed to load');
-          console.error('This could be due to:');
-          console.error('1. Network connectivity issues');
-          console.error('2. Firewall blocking the Square CDN');
-          console.error('3. DNS resolution problems');
-          console.error('Credit card payments will not be available');
+          console.error('Payment system temporarily unavailable');
           setSquareLoaded(false);
           return;
         }
@@ -105,12 +100,7 @@ export default function Home() {
         };
         
         script.onerror = (error) => {
-          console.error(`Failed to load Square SDK from: ${urls[index]}`);
-          console.error('This could be due to:');
-          console.error('1. Network connectivity issues');
-          console.error('2. Firewall blocking the Square CDN');
-          console.error('3. DNS resolution problems');
-          console.error('Credit card payments will not be available');
+          console.error('Payment system temporarily unavailable');
           
           // Remove the failed script
           if (script.parentNode) {
@@ -169,7 +159,7 @@ export default function Home() {
 
   const initializeSquarePaymentForm = async () => {
     if (!window.Square) {
-      console.error('Square SDK not loaded yet. Enabling offline testing mode...');
+      console.error('Payment system temporarily unavailable');
       
       // Create a mock Square form for testing when SDK fails to load
       const container = document.getElementById('card-container');
@@ -236,8 +226,7 @@ export default function Home() {
     const environment = squareEnvironment || detectedFromAppId;
     
     if (!process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID) {
-      console.warn('Using demo mode - Square payments will not actually work until you add your real NEXT_PUBLIC_SQUARE_APPLICATION_ID');
-      console.warn('See SQUARE_PAYMENT_SETUP.md for setup instructions');
+      console.warn('Payment system in demo mode');
     }
 
     try {
@@ -254,9 +243,7 @@ export default function Home() {
       
       setCardPaymentForm({ payments, card });
     } catch (error) {
-      console.error('Failed to initialize Square payment form:', error);
-      console.error('This is likely because you need to set up your Square credentials.');
-      console.error('See SQUARE_PAYMENT_SETUP.md for instructions.');
+      console.error('Payment system temporarily unavailable');
       
       // Show an error message in the UI
       const container = document.getElementById('card-container');
@@ -513,12 +500,12 @@ export default function Home() {
         
         setAvailableTimeSlots(slots);
       } else {
-        console.error('Failed to fetch available time slots:', result.message);
+        console.error('Time slots temporarily unavailable');
         // Fallback to all time slots if API fails
         setAvailableTimeSlots(generateTimeOptions());
       }
     } catch (error) {
-      console.error('Error fetching available time slots:', error);
+      console.error('Time slots temporarily unavailable');
       // Fallback to all time slots if API fails
       setAvailableTimeSlots(generateTimeOptions());
     } finally {
@@ -622,7 +609,7 @@ export default function Home() {
         }
       }
     } catch (error) {
-      console.error('Error submitting order:', error);
+      console.error('Order submission failed');
       alert("Failed to submit order. Please try again.");
     } finally {
       // Reset submitting state
@@ -700,15 +687,15 @@ export default function Home() {
           
           return { success: true, paymentId: paymentData.paymentId };
         } else {
-          console.error('Payment processing failed:', paymentData);
+          console.error('Payment processing failed');
           return { success: false, error: paymentData.error };
         }
       } else {
-        console.error('Card tokenization failed:', result.errors);
+        console.error('Card tokenization failed');
         return { success: false, error: 'Card tokenization failed' };
       }
     } catch (error) {
-      console.error('Payment processing error:', error);
+      console.error('Payment processing error');
       return { success: false, error: 'Payment processing failed' };
     }
   };
@@ -882,7 +869,7 @@ export default function Home() {
                   value={customerInfo.orderDate}
                   onChange={handleDateChange}
                   min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                  max={new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent ${
                     dateFieldError 
                       ? 'border-red-500 focus:ring-red-500 bg-red-50' 
@@ -900,24 +887,8 @@ export default function Home() {
               </div>
               
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="mb-1">
                   <label className="block text-sm font-medium text-gray-900">Pickup Time *</label>
-                  {customerInfo.orderDate && !isSunday(customerInfo.orderDate) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Clear cache for this date and refresh
-                        const newCache = { ...timeSlotCache };
-                        delete newCache[customerInfo.orderDate];
-                        setTimeSlotCache(newCache);
-                        fetchAvailableTimeSlots(customerInfo.orderDate);
-                      }}
-                      disabled={loadingTimeSlots}
-                      className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                    >
-                      🔄 Refresh
-                    </button>
-                  )}
                 </div>
                 <select
                   required

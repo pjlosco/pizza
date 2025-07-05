@@ -118,11 +118,7 @@ export async function POST(request: NextRequest) {
     const rows = response.data.values || [];
     if (rows.length <= 1) {
       // No orders or only header row
-      const message = `📊 Daily Order Summary - ${new Date(targetDate).toLocaleDateString()}
-
-🍕 No orders received today.
-
-Have a great day! 🌟`;
+      const message = `📊 ${new Date(targetDate).toLocaleDateString()}: No orders today 🌟`;
 
       await sendSMS(message);
       
@@ -150,11 +146,7 @@ Have a great day! 🌟`;
     console.log(`Found ${dailyOrders.length} orders for ${targetDate}`);
 
     if (dailyOrders.length === 0) {
-      const message = `📊 Daily Order Summary - ${new Date(targetDate).toLocaleDateString()}
-
-🍕 No orders received today.
-
-Have a great day! 🌟`;
+      const message = `📊 ${new Date(targetDate).toLocaleDateString()}: No orders today 🌟`;
 
       await sendSMS(message);
       
@@ -219,7 +211,15 @@ Have a great day! 🌟`;
       }
     });
 
-    // Create summary message
+    // TODO: FUTURE ENHANCEMENT - Restore robust message format after Twilio trial
+    // Current robust format includes:
+    // - Detailed order breakdown with customer names, phones, pickup times
+    // - Full item descriptions
+    // - Payment method breakdown
+    // - Order timestamps
+    // - Truncation logic for long messages
+    // 
+    // Simplified format for Twilio trial limits:
     const date_formatted = new Date(targetDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -227,39 +227,21 @@ Have a great day! 🌟`;
       day: 'numeric'
     });
 
-    let message = `📊 Daily Order Summary - ${date_formatted}
+    let message = `📊 ${date_formatted}
+🍕 Orders: ${dailyOrders.length}
+💰 Revenue: $${totalRevenue.toFixed(2)}
+💳 Cash: ${cashOrders} | Card: ${cardOrders}`;
 
-🍕 Total Orders: ${dailyOrders.length}
-💰 Total Revenue: $${totalRevenue.toFixed(2)}
-
-💳 Payment Methods:
-• Cash: ${cashOrders} orders
-• Card: ${cardOrders} orders
-
-📋 Order Details:
-${orderDetails.join('\n\n')}`;
-
-    // Truncate if message is too long for SMS (1600 char limit)
-    if (message.length > 1500) {
-      const shortOrderDetails = dailyOrders.map((row, index) => {
-        const customerName = row[1] || 'Unknown';
-        const total = row[8] || '0';
-        const items = row[7] || '';
-        return `${index + 1}. ${customerName} - ${total}\n   ${items.length > 50 ? items.substring(0, 50) + '...' : items}`;
-      }).join('\n');
-
-      message = `📊 Daily Order Summary - ${date_formatted}
-
-🍕 Total Orders: ${dailyOrders.length}
-💰 Total Revenue: $${totalRevenue.toFixed(2)}
-
-💳 Payment Methods:
-• Cash: ${cashOrders} orders
-• Card: ${cardOrders} orders
-
-📋 Orders:
-${shortOrderDetails}`;
-    }
+    // Add brief order list if there are orders
+    // if (dailyOrders.length > 0) {
+    //   const briefOrders = dailyOrders.map((row, index) => {
+    //     const customerName = row[1] || 'Unknown';
+    //     const total = row[8] || '0';
+    //     return `${index + 1}. ${customerName} - ${total}`;
+    //   }).join('\n');
+      
+    //   message += `\n\n📋 Orders:\n${briefOrders}`;
+    // }
 
     await sendSMS(message);
 

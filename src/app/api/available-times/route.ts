@@ -126,10 +126,10 @@ export async function GET(request: NextRequest) {
     const auth = createGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Fetch all orders to check for existing bookings on this date
+    // Fetch only order dates and pickup times to check for existing bookings
     const ordersResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'A:N',
+      range: 'D:E', // Only fetch order date (D) and pickup time (E) columns
     });
 
     // Generate all possible time slots
@@ -143,9 +143,9 @@ export async function GET(request: NextRequest) {
       const dataRows = ordersResponse.data.values.slice(1);
       
       for (const row of dataRows) {
-        if (row.length >= 5) {
-          const orderDate = row[3]; // Column D: Order date
-          const pickupTime = row[4]; // Column E: Pickup time (formatted)
+        if (row.length >= 2) {
+          const orderDate = row[0]; // Column D: Order date
+          const pickupTime = row[1]; // Column E: Pickup time (formatted)
           
           // If this order is for the requested date and has a pickup time
           if (orderDate === date && pickupTime) {
@@ -178,11 +178,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       date,
-      availableTimeSlots,
-      bookedTimeSlots: Array.from(bookedTimes).map(time => ({
-        value: time,
-        display: formatTimeFor12Hour(time)
-      }))
+      availableTimeSlots
     });
 
   } catch (error) {
