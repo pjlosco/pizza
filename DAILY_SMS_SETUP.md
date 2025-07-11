@@ -69,9 +69,9 @@ CRON_SECRET=your_random_secret_key
 2. **Automatic execution** - Vercel will automatically call the endpoint every day
 3. **No setup required** - Just deploy and it works!
 
-The cron runs at **10:00 AM UTC**. To adjust the time zone:
-- **EST/EDT**: Use `0 14 * * *` (10 AM Eastern)
-- **PST/PDT**: Use `0 17 * * *` (10 AM Pacific)
+The cron runs at **10:00 AM Pacific Time** (6:00 PM UTC). To adjust the time zone:
+- **EST/EDT**: Use `0 13 * * *` (10 AM Eastern)
+- **PST/PDT**: Use `0 18 * * *` (10 AM Pacific) ✅ **Current Setting**
 - **CST/CDT**: Use `0 15 * * *` (10 AM Central)
 
 ### Using GitHub Actions (Alternative)
@@ -82,7 +82,7 @@ If you prefer GitHub Actions, create `.github/workflows/daily-summary.yml`:
 name: Daily Order Summary
 on:
   schedule:
-    - cron: '0 14 * * *'  # 10 AM EST
+    - cron: '0 17 * * *'  # 10 AM PST
   workflow_dispatch:  # Manual trigger
 
 jobs:
