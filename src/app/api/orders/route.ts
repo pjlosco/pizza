@@ -121,6 +121,14 @@ export async function POST(request: NextRequest) {
 
     const orderData = await request.json();
     
+    // Validate order structure
+    if (!orderData.customer) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid order data: Customer information is required' },
+        { status: 400 }
+      );
+    }
+    
     // Validate referral code
     if (!orderData.customer.referralCode) {
       return NextResponse.json(
@@ -132,6 +140,66 @@ export async function POST(request: NextRequest) {
     if (!validateReferralCode(orderData.customer.referralCode)) {
       return NextResponse.json(
         { success: false, message: 'Invalid referral code. Please check your code and try again.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate customer information
+    if (!orderData.customer.name || orderData.customer.name.trim().length < 2) {
+      return NextResponse.json(
+        { success: false, message: 'Please provide a valid name (at least 2 characters).' },
+        { status: 400 }
+      );
+    }
+    
+    if (!orderData.customer.phone || orderData.customer.phone.replace(/\D/g, '').length < 10) {
+      return NextResponse.json(
+        { success: false, message: 'Please provide a valid phone number.' },
+        { status: 400 }
+      );
+    }
+    
+    if (!orderData.customer.email || !orderData.customer.email.includes('@')) {
+      return NextResponse.json(
+        { success: false, message: 'Please provide a valid email address.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate order items
+    if (!orderData.items || orderData.items.length === 0) {
+      return NextResponse.json(
+        { success: false, message: 'Please add at least one item to your order.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate order total
+    if (!orderData.total || orderData.total <= 0) {
+      return NextResponse.json(
+        { success: false, message: 'Order total must be greater than $0.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate pickup date (must be at least 1 day in advance)
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const orderDate = new Date(orderData.customer.orderDate);
+    if (orderDate < tomorrow) {
+      return NextResponse.json(
+        { success: false, message: 'Orders must be placed at least 1 day in advance.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate pickup time
+    if (!orderData.customer.pickupTime) {
+      return NextResponse.json(
+        { success: false, message: 'Please select a pickup time.' },
         { status: 400 }
       );
     }
