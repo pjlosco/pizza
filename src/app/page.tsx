@@ -71,6 +71,16 @@ export default function Home() {
   const [timeSlotCache, setTimeSlotCache] = useState<{[date: string]: {value: string, display: string}[]}>({}); 
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
 
+  // Field-specific validation errors
+  const [fieldErrors, setFieldErrors] = useState<{
+    phone?: string;
+    date?: string;
+    pickupTime?: string;
+    referralCode?: string;
+    payment?: string;
+    general?: string;
+  }>({});
+
   // Load Square Web SDK
   // Track which Square environment was loaded
   const [squareEnvironment, setSquareEnvironment] = useState<'sandbox' | 'production' | null>(null);
@@ -393,6 +403,10 @@ export default function Home() {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setCustomerInfo({...customerInfo, phone: formatted});
+    // Clear phone error when user starts typing
+    if (fieldErrors.phone) {
+      setFieldErrors(prev => ({ ...prev, phone: undefined }));
+    }
   };
 
   // Function to check if a date is Sunday
@@ -452,12 +466,17 @@ export default function Home() {
   const generateTimeOptions = () => {
     const times = [];
     const startHour = 16; // 4 PM
-    const endHour = 20; // 8 PM
+    const startMinute = 40; // 4:40 PM
+    const endHour = 19; // 7 PM
+    const endMinute = 0; // 7:00 PM
     
     for (let hour = startHour; hour <= endHour; hour++) {
       for (let minutes = 0; minutes < 60; minutes += 20) {
-        // Don't add 8:20 PM or 8:40 PM - stop at 8:00 PM
-        if (hour === endHour && minutes > 0) break;
+        // Skip times before 4:40 PM
+        if (hour === startHour && minutes < startMinute) continue;
+        
+        // Don't add times after 7:00 PM
+        if (hour === endHour && minutes > endMinute) break;
         
         const timeString = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
         const displayTime = new Date(`2000-01-01T${timeString}`).toLocaleTimeString([], { 
@@ -474,6 +493,10 @@ export default function Home() {
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCustomerInfo({...customerInfo, pickupTime: e.target.value});
+    // Clear pickup time error when user selects a time
+    if (fieldErrors.pickupTime) {
+      setFieldErrors(prev => ({ ...prev, pickupTime: undefined }));
+    }
   };
 
   // Fetch available time slots for a specific date
@@ -523,7 +546,7 @@ export default function Home() {
     
     // Validate phone number
     if (!validatePhoneNumber(customerInfo.phone)) {
-      alert("Please enter a valid 10-digit phone number.");
+      setFieldErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit phone number." }));
       return;
     }
     
@@ -543,13 +566,13 @@ export default function Home() {
     
     // Validate pickup time is selected
     if (!customerInfo.pickupTime) {
-      alert("Please select a pickup time.");
+      setFieldErrors(prev => ({ ...prev, pickupTime: "Please select a pickup time." }));
       return;
     }
 
     // Validate referral code is provided
     if (!customerInfo.referralCode.trim()) {
-      alert("Please enter a referral code to place your order.");
+      setFieldErrors(prev => ({ ...prev, referralCode: "Please enter a referral code to place your order." }));
       return;
     }
     
@@ -558,7 +581,7 @@ export default function Home() {
     const submittedCode = customerInfo.referralCode.trim().toLowerCase();
     
     if (!validCodes.includes(submittedCode)) {
-      alert("Invalid referral code. Please check your code and try again.");
+      setFieldErrors(prev => ({ ...prev, referralCode: "Invalid referral code. Please check your code and try again." }));
       return;
     }
 
@@ -581,7 +604,7 @@ export default function Home() {
       if (paymentInfo.type === 'card') {
         paymentResult = await processCardPayment();
         if (!paymentResult.success) {
-          alert('Payment failed. Please check your card information and try again.');
+          setFieldErrors(prev => ({ ...prev, payment: 'Payment failed. Please check your card information and try again.' }));
           setIsSubmittingOrder(false);
           return;
         }
@@ -622,25 +645,26 @@ export default function Home() {
         console.log('Order submitted successfully');
         setOrderSubmitted(true);
         setShowOrderForm(false);
+        setFieldErrors({});
   
       } else {
         console.log('Order submission failed:', result.message);
         if (response.status === 409) {
-          alert("Duplicate order detected. Please wait a moment before trying again.");
+          setFieldErrors(prev => ({ ...prev, general: "Duplicate order detected. Please wait a moment before trying again." }));
         } else if (response.status === 400) {
           // Show the specific error message from the server
-          alert(result.message || "Invalid order data. Please check your information and try again.");
+          setFieldErrors(prev => ({ ...prev, general: result.message || "Invalid order data. Please check your information and try again." }));
           // Don't proceed with order confirmation
           return;
         } else {
-          alert("Failed to submit order. Please try again.");
+          setFieldErrors(prev => ({ ...prev, general: "Failed to submit order. Please try again." }));
           // Don't proceed with order confirmation
           return;
         }
       }
     } catch (error) {
       console.error('Order submission failed');
-      alert("Failed to submit order. Please try again.");
+      setFieldErrors(prev => ({ ...prev, general: "Failed to submit order. Please try again." }));
     } finally {
       // Reset submitting state
       setIsSubmittingOrder(false);
@@ -764,10 +788,10 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-2xl font-bold">Your Order</h3>
+              <h3 className="text-2xl font-bold text-black">Your Order</h3>
               <button 
                 onClick={() => setShowCart(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-black hover:text-gray-700 text-2xl"
               >
                 ×
               </button>
@@ -794,8 +818,8 @@ export default function Home() {
                 return (
                   <div key={pizza.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <div>
-                      <h4 className="font-semibold">{pizza.name}</h4>
-                      <p className="text-sm text-gray-800">${pizza.price}</p>
+                      <h4 className="font-semibold text-black">{pizza.name}</h4>
+                      <p className="text-sm text-black">${pizza.price}</p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
@@ -805,7 +829,7 @@ export default function Home() {
                       >
                         -
                       </button>
-                      <span className="w-8 text-center">{quantity}</span>
+                      <span className="w-8 text-center text-black">{quantity}</span>
                       <button
                         onClick={() => updateQuantity(pizza.id, quantity + 1)}
                         className="w-8 h-8 bg-red-600 text-white rounded-full hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -821,7 +845,7 @@ export default function Home() {
             
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-xl font-bold">Total:</span>
+                <span className="text-xl font-bold text-black">Total:</span>
                 <span className="text-2xl font-bold text-red-600">${getTotalPrice()}</span>
               </div>
               <button
@@ -844,14 +868,15 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-2xl font-bold">Complete Your Order</h3>
+              <h3 className="text-2xl font-bold text-black">Complete Your Order</h3>
               <button 
                 onClick={() => {
                   setShowOrderForm(false);
                   setDateFieldError(false);
                   setAvailableTimeSlots([]);
+                  setFieldErrors({});
                 }}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-black hover:text-gray-700 text-2xl"
               >
                 ×
               </button>
@@ -866,18 +891,20 @@ export default function Home() {
             
             <form onSubmit={handleOrderSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Name *</label>
+                <label className="block text-sm font-medium text-black mb-1">Name *</label>
                 <input
                   type="text"
                   required
                   value={customerInfo.name}
                   onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Phone *</label>
+                <label className={`block text-sm font-medium mb-1 ${fieldErrors.phone ? 'text-red-600' : 'text-black'}`}>
+                  Phone *
+                </label>
                 <input
                   type="tel"
                   required
@@ -885,12 +912,19 @@ export default function Home() {
                   value={customerInfo.phone}
                   onChange={handlePhoneChange}
                   placeholder="(555) 123-4567"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent text-black ${
+                    fieldErrors.phone 
+                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                 />
+                {fieldErrors.phone && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.phone}</p>
+                )}
               </div>
               
               <div>
-                <label className={`block text-sm font-medium mb-1 ${dateFieldError ? 'text-red-600' : 'text-gray-900'}`}>
+                <label className={`block text-sm font-medium mb-1 ${dateFieldError ? 'text-red-600' : 'text-black'}`}>
                   Pickup Date *
                 </label>
                 <input
@@ -900,7 +934,7 @@ export default function Home() {
                   onChange={handleDateChange}
                   min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent text-black ${
                     dateFieldError 
                       ? 'border-red-500 focus:ring-red-500 bg-red-50' 
                       : 'border-gray-300 focus:ring-red-500'
@@ -911,21 +945,32 @@ export default function Home() {
                     ⚠️ We are closed on Sundays. Please select Monday-Saturday.
                   </p>
                 )}
-                {!dateFieldError && (
-                  <p className="text-sm text-gray-700 mt-1">Open Monday-Saturday, 4:00 PM - 8:00 PM • Orders must be placed 1 day in advance</p>
+                {fieldErrors.date && (
+                  <p className="text-sm text-red-600 mt-1 font-medium">
+                    {fieldErrors.date}
+                  </p>
+                )}
+                {!dateFieldError && !fieldErrors.date && (
+                  <p className="text-sm text-black mt-1">Open Monday-Saturday, 4:40 PM - 7:00 PM • Orders must be placed 1 day in advance</p>
                 )}
               </div>
               
               <div>
                 <div className="mb-1">
-                  <label className="block text-sm font-medium text-gray-900">Pickup Time *</label>
+                  <label className={`block text-sm font-medium ${fieldErrors.pickupTime ? 'text-red-600' : 'text-black'}`}>
+                    Pickup Time *
+                  </label>
                 </div>
                 <select
                   required
                   value={customerInfo.pickupTime}
                   onChange={handleTimeChange}
                   disabled={loadingTimeSlots || availableTimeSlots.length === 0}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-black ${
+                    fieldErrors.pickupTime 
+                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                 >
                   <option value="">
                     {loadingTimeSlots 
@@ -941,8 +986,8 @@ export default function Home() {
                     </option>
                   ))}
                 </select>
-                <p className="text-sm text-gray-700 mt-1">
-                  Operating hours: 4:00 PM - 8:00 PM (20-minute intervals)
+                <p className="text-sm text-black mt-1">
+                  Operating hours: 4:40 PM - 7:00 PM (20-minute intervals)
                   {availableTimeSlots.length > 0 && (
                     <span className="text-green-600 ml-1">• {availableTimeSlots.length} slots available</span>
                   )}
@@ -950,48 +995,66 @@ export default function Home() {
                     <span className="text-red-600 ml-1">• All slots booked for this date</span>
                   )}
                 </p>
+                {fieldErrors.pickupTime && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.pickupTime}</p>
+                )}
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Email *</label>
+                <label className="block text-sm font-medium text-black mb-1">Email *</label>
                 <input
                   type="email"
                   required
                   value={customerInfo.email}
                   onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Referral Code *</label>
+                <label className={`block text-sm font-medium mb-1 ${fieldErrors.referralCode ? 'text-red-600' : 'text-black'}`}>
+                  Referral Code *
+                </label>
                 <input
                   type="text"
                   required
                   value={customerInfo.referralCode}
-                  onChange={(e) => setCustomerInfo({...customerInfo, referralCode: e.target.value})}
+                  onChange={(e) => {
+                    setCustomerInfo({...customerInfo, referralCode: e.target.value});
+                    // Clear referral code error when user starts typing
+                    if (fieldErrors.referralCode) {
+                      setFieldErrors(prev => ({ ...prev, referralCode: undefined }));
+                    }
+                  }}
                   placeholder="Enter your referral code"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${
+                    fieldErrors.referralCode 
+                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                 />
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-black mt-1">
                   A valid referral code is required to place an order
                 </p>
+                {fieldErrors.referralCode && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.referralCode}</p>
+                )}
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Special Requests</label>
+                <label className="block text-sm font-medium text-black mb-1">Special Requests</label>
                 <textarea
                   value={customerInfo.specialRequests}
                   onChange={(e) => setCustomerInfo({...customerInfo, specialRequests: e.target.value})}
                   placeholder="Any special requests, notes, or dietary restrictions for your order..."
                   rows={3}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 />
               </div>
 
               {/* Payment Method Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-3">Payment Method *</label>
+                <label className="block text-sm font-medium text-black mb-3">Payment Method *</label>
                 <div className="space-y-3">
                   <div className="flex items-center">
                     <input
@@ -1003,7 +1066,7 @@ export default function Home() {
                       onChange={() => setPaymentInfo({ type: 'cash' })}
                       className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                     />
-                    <label htmlFor="cash" className="ml-3 text-sm text-gray-900">
+                    <label htmlFor="cash" className="ml-3 text-sm text-black">
                       💵 Cash on pickup
                     </label>
                   </div>
@@ -1017,7 +1080,7 @@ export default function Home() {
                       onChange={() => setPaymentInfo({ type: 'card' })}
                       className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                     />
-                    <label htmlFor="card" className="ml-3 text-sm text-gray-900">
+                    <label htmlFor="card" className="ml-3 text-sm text-black">
                       💳 Credit/Debit Card
                     </label>
                   </div>
@@ -1026,15 +1089,15 @@ export default function Home() {
                 {/* Square Card Payment Form */}
                 {paymentInfo.type === 'card' && (
                   <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">Card Information</h4>
+                    <h4 className="text-sm font-medium text-black mb-3">Card Information</h4>
                     {squareLoaded ? (
                       <div id="card-container" className="bg-white border border-gray-300 rounded-lg p-3"></div>
                     ) : (
-                      <div className="bg-white border border-gray-300 rounded-lg p-3 text-center text-gray-500">
+                      <div className="bg-white border border-gray-300 rounded-lg p-3 text-center text-black">
                         Loading payment form...
                       </div>
                     )}
-                    <p className="text-xs text-gray-600 mt-2">
+                    <p className="text-xs text-black mt-2">
                       🔒 Your payment information is secure and encrypted
                     </p>
                   </div>
@@ -1043,13 +1106,31 @@ export default function Home() {
               
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-lg font-semibold">Total:</span>
+                  <span className="text-lg font-semibold text-black">Total:</span>
                   <span className="text-xl font-bold text-red-600">${getTotalPrice()}</span>
                 </div>
                 {paymentInfo.type === 'cash' ? (
-                  <p className="text-sm text-gray-800 mb-4">💵 Payment: Cash on pickup</p>
+                  <p className="text-sm text-black mb-4">💵 Payment: Cash on pickup</p>
                 ) : (
-                  <p className="text-sm text-gray-800 mb-4">💳 Payment: Credit/Debit Card (charged now)</p>
+                  <p className="text-sm text-black mb-4">💳 Payment: Credit/Debit Card (charged now)</p>
+                )}
+                
+                {/* General Error Display */}
+                {fieldErrors.general && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-red-800 font-medium">
+                      ⚠️ {fieldErrors.general}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Payment Error Display */}
+                {fieldErrors.payment && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-red-800 font-medium">
+                      💳 {fieldErrors.payment}
+                    </p>
+                  </div>
                 )}
                 
                 {/* SMS Consent Notice */}
@@ -1090,8 +1171,8 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center">
             <div className="text-6xl mb-4">🎉</div>
-            <h3 className="text-2xl font-bold mb-4">Order Confirmed!</h3>
-            <p className="text-gray-800 mb-6">
+            <h3 className="text-2xl font-bold text-black mb-4">Order Confirmed!</h3>
+            <p className="text-black mb-6">
               Thank you for your order!<br />
               Pickup time: {new Date(`2000-01-01T${customerInfo.pickupTime}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })} on {(() => {
                 const [year, month, day] = customerInfo.orderDate.split('-').map(Number);
@@ -1100,11 +1181,11 @@ export default function Home() {
               We'll text you at {customerInfo.phone} with order updates and when it's ready for pickup.
             </p>
             <div className="bg-red-50 p-4 rounded-lg mb-6">
-              <p className="font-semibold">Order Total: ${getTotalPrice()}</p>
+              <p className="font-semibold text-black">Order Total: ${getTotalPrice()}</p>
               {paymentInfo.type === 'cash' ? (
-                <p className="text-sm text-gray-800">💵 Pay with cash upon pickup</p>
+                <p className="text-sm text-black">💵 Pay with cash upon pickup</p>
               ) : (
-                <div className="text-sm text-gray-800">
+                <div className="text-sm text-black">
                   <p className="text-green-600 font-medium">💳 Payment Successful!</p>
                   {paymentInfo.cardLast4 && (
                     <p>Card ending in {paymentInfo.cardLast4}</p>
@@ -1171,11 +1252,6 @@ export default function Home() {
                   sizes="(max-width: 768px) 320px, 384px"
                   priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-center pb-8">
-                  <p className="text-white text-xl font-semibold text-center drop-shadow-lg">
-                    Fresh from the Oven
-                  </p>
-                </div>
               </div>
             </div>
           </div>
@@ -1414,7 +1490,7 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4 text-green-200">Hours</h4>
               <div className="space-y-2 text-green-100">
-                <p>Mon-Sat: 4PM - 8PM</p>
+                <p>Mon-Sat: 4:40PM - 7:00PM</p>
                 <p>Sunday: Closed</p>
               </div>
             </div>

@@ -62,16 +62,21 @@ function createGoogleAuth() {
   }
 }
 
-// Generate all possible time slots (4 PM - 8 PM with 20-minute increments)
+// Generate all possible time slots (4:40 PM - 7:00 PM with 20-minute increments)
 function generateAllTimeSlots(): string[] {
   const times = [];
   const startHour = 16; // 4 PM
-  const endHour = 20; // 8 PM
+  const startMinute = 40; // 4:40 PM
+  const endHour = 19; // 7 PM
+  const endMinute = 0; // 7:00 PM
   
   for (let hour = startHour; hour <= endHour; hour++) {
     for (let minutes = 0; minutes < 60; minutes += 20) {
-      // Don't add 8:20 PM or 8:40 PM - stop at 8:00 PM
-      if (hour === endHour && minutes > 0) break;
+      // Skip times before 4:40 PM
+      if (hour === startHour && minutes < startMinute) continue;
+      
+      // Don't add times after 7:00 PM
+      if (hour === endHour && minutes > endMinute) break;
       
       const timeString = `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
       times.push(timeString);
