@@ -84,11 +84,14 @@ async function cleanupOrders(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
     
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Only require authentication if CRON_SECRET is set
+    if (cronSecret && cronSecret.trim() !== '') {
+      if (authHeader !== `Bearer ${cronSecret}`) {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
     }
 
     console.log('Running scheduled order cleanup...');
