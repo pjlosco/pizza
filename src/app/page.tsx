@@ -552,6 +552,15 @@ export default function Home() {
       alert("Please enter a referral code to place your order.");
       return;
     }
+    
+    // Additional frontend validation - check if referral code looks valid
+    const validCodes = ['mila', 'patrick', 'rola']; // This should match your environment variable
+    const submittedCode = customerInfo.referralCode.trim().toLowerCase();
+    
+    if (!validCodes.includes(submittedCode)) {
+      alert("Invalid referral code. Please check your code and try again.");
+      return;
+    }
 
     // Validate that the selected time is still available (in case someone else booked it)
     if (availableTimeSlots.length > 0 && !availableTimeSlots.some(slot => slot.value === customerInfo.pickupTime)) {
@@ -593,6 +602,8 @@ export default function Home() {
 
       
       // Submit order to API
+      console.log('Submitting order with referral code:', orderDetails.customer.referralCode);
+      
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -601,20 +612,30 @@ export default function Home() {
         body: JSON.stringify(orderDetails),
       });
       
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
       const result = await response.json();
+      console.log('Response result:', result);
       
       if (result.success) {
+        console.log('Order submitted successfully');
         setOrderSubmitted(true);
         setShowOrderForm(false);
   
       } else {
+        console.log('Order submission failed:', result.message);
         if (response.status === 409) {
           alert("Duplicate order detected. Please wait a moment before trying again.");
         } else if (response.status === 400) {
           // Show the specific error message from the server
           alert(result.message || "Invalid order data. Please check your information and try again.");
+          // Don't proceed with order confirmation
+          return;
         } else {
           alert("Failed to submit order. Please try again.");
+          // Don't proceed with order confirmation
+          return;
         }
       }
     } catch (error) {
