@@ -547,6 +547,12 @@ export default function Home() {
       return;
     }
 
+    // Validate referral code is provided
+    if (!customerInfo.referralCode.trim()) {
+      alert("Please enter a referral code to place your order.");
+      return;
+    }
+
     // Validate that the selected time is still available (in case someone else booked it)
     if (availableTimeSlots.length > 0 && !availableTimeSlots.some(slot => slot.value === customerInfo.pickupTime)) {
       alert("The selected pickup time is no longer available. Please select a different time.");
@@ -604,6 +610,9 @@ export default function Home() {
       } else {
         if (response.status === 409) {
           alert("Duplicate order detected. Please wait a moment before trying again.");
+        } else if (response.status === 400) {
+          // Show the specific error message from the server
+          alert(result.message || "Invalid order data. Please check your information and try again.");
         } else {
           alert("Failed to submit order. Please try again.");
         }
@@ -940,9 +949,12 @@ export default function Home() {
                   required
                   value={customerInfo.referralCode}
                   onChange={(e) => setCustomerInfo({...customerInfo, referralCode: e.target.value})}
-                  placeholder="Enter referral code"
+                  placeholder="Enter your referral code"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                <p className="text-xs text-gray-600 mt-1">
+                  A valid referral code is required to place an order
+                </p>
               </div>
               
               <div>

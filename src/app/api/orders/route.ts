@@ -72,6 +72,26 @@ function createGoogleAuth() {
 
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
 
+// Helper function to validate referral code
+function validateReferralCode(referralCode: string): boolean {
+  const validCodes = process.env.REFERRAL_CODES;
+  if (!validCodes) {
+    console.warn('REFERRAL_CODES environment variable not set - allowing all orders');
+    return true; // Allow orders if no codes are configured
+  }
+  
+  const validCodesList = validCodes.split(',').map(code => code.trim().toLowerCase());
+  const submittedCode = referralCode.trim().toLowerCase();
+  
+  console.log('Validating referral code:', {
+    submitted: submittedCode,
+    validCodes: validCodesList,
+    isValid: validCodesList.includes(submittedCode)
+  });
+  
+  return validCodesList.includes(submittedCode);
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Validate environment variables
@@ -100,6 +120,21 @@ export async function POST(request: NextRequest) {
     }
 
     const orderData = await request.json();
+    
+    // Validate referral code
+    if (!orderData.customer.referralCode) {
+      return NextResponse.json(
+        { success: false, message: 'Referral code is required to place an order' },
+        { status: 400 }
+      );
+    }
+    
+    if (!validateReferralCode(orderData.customer.referralCode)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid referral code. Please check your code and try again.' },
+        { status: 400 }
+      );
+    }
     
     // Create a unique order identifier for duplicate detection
     const orderIdentifier = `${orderData.customer.phone}-${orderData.customer.orderDate}-${orderData.total}-${orderData.items.map((item: any) => `${item.name}(${item.quantity})`).join(',')}`;
