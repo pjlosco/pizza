@@ -59,7 +59,7 @@ export default function Home() {
     specialRequests: ""
   });
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
-    type: 'cash'
+    type: 'card'
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -290,7 +290,7 @@ export default function Home() {
           setShowCart(false);
         } else if (showOrderForm) {
           setShowOrderForm(false);
-          setPaymentInfo({ type: 'cash' });
+          setPaymentInfo({ type: 'card' });
           setCardPaymentForm(null);
         } else if (orderSubmitted) {
           setOrderSubmitted(false);
@@ -800,7 +800,7 @@ export default function Home() {
             {/* Pickup Only Notice */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-green-800 text-center">
-                🚚 Pickup Only - Cash payment upon pickup
+                🚚 Pickup Only - Credit/Debit card payment required
               </p>
             </div>
             
@@ -1045,18 +1045,34 @@ export default function Home() {
                 <label className="block text-sm font-medium text-black mb-1">Special Requests</label>
                 <textarea
                   value={customerInfo.specialRequests}
-                  onChange={(e) => setCustomerInfo({...customerInfo, specialRequests: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Limit to 500 characters
+                    if (value.length <= 500) {
+                      setCustomerInfo({...customerInfo, specialRequests: value});
+                    }
+                  }}
                   placeholder="Any special requests, notes, or dietary restrictions for your order..."
                   rows={3}
+                  maxLength={500}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 />
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-gray-500">
+                    Optional - for dietary restrictions, cooking preferences, or special instructions
+                  </span>
+                  <span className={`text-xs ${customerInfo.specialRequests.length > 450 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {customerInfo.specialRequests.length}/500
+                  </span>
+                </div>
               </div>
 
               {/* Payment Method Selection */}
               <div>
                 <label className="block text-sm font-medium text-black mb-3">Payment Method *</label>
                 <div className="space-y-3">
-                  <div className="flex items-center">
+                  {/* Cash payment option temporarily disabled */}
+                  {/* <div className="flex items-center">
                     <input
                       type="radio"
                       id="cash"
@@ -1069,7 +1085,7 @@ export default function Home() {
                     <label htmlFor="cash" className="ml-3 text-sm text-black">
                       💵 Cash on pickup
                     </label>
-                  </div>
+                  </div> */}
                   <div className="flex items-center">
                     <input
                       type="radio"
@@ -1198,7 +1214,7 @@ export default function Home() {
                 setOrderSubmitted(false);
                 setCart([]);
                 setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], pickupTime: "", specialRequests: "" });
-                setPaymentInfo({ type: 'cash' });
+                setPaymentInfo({ type: 'card' });
                 setCardPaymentForm(null);
                 setDateFieldError(false);
                 setAvailableTimeSlots([]);
@@ -1248,7 +1264,7 @@ export default function Home() {
                   src="/gallery/ovenpizza.jpeg"
                   alt="Fresh pizza from the oven"
                   fill
-                  className="object-cover"
+                  className="object-cover scale-105"
                   sizes="(max-width: 768px) 320px, 384px"
                   priority
                 />

@@ -204,6 +204,30 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate special requests length (max 500 characters)
+    if (orderData.customer.specialRequests && orderData.customer.specialRequests.length > 500) {
+      return NextResponse.json(
+        { success: false, message: 'Special requests must be 500 characters or less.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate payment method - only card payments are allowed
+    if (!orderData.paymentInfo || orderData.paymentInfo.type !== 'card') {
+      return NextResponse.json(
+        { success: false, message: 'Only credit/debit card payments are accepted.' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate that card payments have a payment ID (indicating successful payment)
+    if (orderData.paymentInfo.type === 'card' && !orderData.paymentInfo.paymentId) {
+      return NextResponse.json(
+        { success: false, message: 'Payment processing required for card orders.' },
+        { status: 400 }
+      );
+    }
+    
     // Create a unique order identifier for duplicate detection
     const orderIdentifier = `${orderData.customer.phone}-${orderData.customer.orderDate}-${orderData.total}-${orderData.items.map((item: any) => `${item.name}(${item.quantity})`).join(',')}`;
     
@@ -265,7 +289,7 @@ export async function POST(request: NextRequest) {
       
       const recentOrders = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: 'A:N',
+        range: 'Orders!A:N',
       });
       
       if (recentOrders.data.values) {
@@ -341,7 +365,7 @@ export async function POST(request: NextRequest) {
     // Append order to Google Sheet
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'A:N', // Use first worksheet
+      range: 'Orders!A:N', // Use Orders tab
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [orderRow],

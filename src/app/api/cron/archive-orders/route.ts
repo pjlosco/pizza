@@ -74,11 +74,9 @@ export async function POST(request: NextRequest) {
 
 async function cleanupOrders(request: NextRequest) {
   try {
-    // TODO: FUTURE ENHANCEMENT (Q1 2025) - Replace deletion with archiving
-    // Instead of deleting old orders, we should move them to an archive sheet
-    // This will preserve order history for analytics and customer service
-    // Archive orders older than 30 days instead of deleting after 2 days
-    // Benefits: Analytics, customer service, audit trail, compliance
+    // ARCHIVING IMPLEMENTATION - Move old orders to Archive tab instead of deleting
+    // This preserves order history for analytics, customer service, and audit trail
+    // Archive orders older than 2 days to keep the main Orders tab clean
     
     // Verify the request is coming from a trusted source (optional security)
     const authHeader = request.headers.get('authorization');
@@ -94,7 +92,7 @@ async function cleanupOrders(request: NextRequest) {
       }
     }
 
-    console.log('Running scheduled order cleanup...');
+    console.log('Running scheduled order archiving...');
 
     // Validate environment variables
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !SPREADSHEET_ID) {
@@ -110,24 +108,24 @@ async function cleanupOrders(request: NextRequest) {
     cutoffDate.setDate(cutoffDate.getDate() - 2);
     const cutoffDateString = cutoffDate.toISOString().split('T')[0];
 
-    console.log('Cleaning up orders older than:', cutoffDateString);
+    console.log('Archiving orders older than:', cutoffDateString);
 
     // Create Google Auth and Sheets API client
     const auth = createGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Fetch all orders
+    // Fetch all orders from the Orders tab
     const ordersResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'A:N',
+      range: 'Orders!A:N',
     });
 
     if (!ordersResponse.data.values || ordersResponse.data.values.length <= 1) {
-      console.log('No orders to clean up');
+      console.log('No orders to archive');
       return NextResponse.json({
         success: true,
-        message: 'No orders to clean up',
-        deletedCount: 0,
+        message: 'No orders to archive',
+        archivedCount: 0,
         timestamp: new Date().toISOString()
       });
     }
@@ -136,8 +134,9 @@ async function cleanupOrders(request: NextRequest) {
     const headerRow = ordersResponse.data.values[0];
     const dataRows = ordersResponse.data.values.slice(1);
 
-    // Find rows to delete (orders older than cutoff date)
-    const rowsToDelete: number[] = [];
+    // Find rows to archive (orders older than cutoff date)
+    const rowsToArchive: number[] = [];
+    const ordersToArchive: any[] = [];
     const ordersToKeep: any[] = [];
 
     dataRows.forEach((row, index) => {
@@ -145,9 +144,12 @@ async function cleanupOrders(request: NextRequest) {
         const orderDate = row[3]; // Column D: Order date
         
         if (orderDate && orderDate < cutoffDateString) {
-          // This order is older than 2 days, mark for deletion
-          rowsToDelete.push(index + 2); // +2 because sheets are 1-indexed and we have a header
-          console.log(`Marking order for deletion: ${orderDate} - ${row[1]} (${row[2]})`);
+          // This order is older than 2 days, mark for archiving
+          rowsToArchive.push(index + 2); // +2 because sheets are 1-indexed and we have a header
+          // Add archived date to the order data
+          const archivedOrder = [...row, new Date().toISOString()]; // Add archived timestamp
+          ordersToArchive.push(archivedOrder);
+          console.log(`Marking order for archiving: ${orderDate} - ${row[1]} (${row[2]})`);
         } else {
           // Keep this order
           ordersToKeep.push(row);
@@ -158,22 +160,71 @@ async function cleanupOrders(request: NextRequest) {
       }
     });
 
-    if (rowsToDelete.length === 0) {
-      console.log('No old orders found to clean up');
+    if (rowsToArchive.length === 0) {
+      console.log('No old orders found to archive');
       return NextResponse.json({
         success: true,
-        message: 'No old orders found to clean up',
-        deletedCount: 0,
+        message: 'No old orders found to archive',
+        archivedCount: 0,
         timestamp: new Date().toISOString()
       });
     }
 
-    console.log(`Found ${rowsToDelete.length} orders to delete`);
+    console.log(`Found ${rowsToArchive.length} orders to archive`);
 
-    // Delete rows from bottom to top to avoid index shifting issues
-    const sortedRowsToDelete = rowsToDelete.sort((a, b) => b - a);
+    // First, append orders to the Archive tab
+    if (ordersToArchive.length > 0) {
+      try {
+        // Check if Archive tab has headers, if not add them
+        const archiveResponse = await sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'Archive!A:O', // Include the new Archived Date column
+        });
+
+        let archiveHeaders = archiveResponse.data.values?.[0] || [];
+        
+        // If Archive tab is empty or doesn't have the right headers, add them
+        if (archiveHeaders.length === 0) {
+          archiveHeaders = [
+            'Timestamp', 'Name', 'Phone', 'Order Date', 'Pickup Time', 'Email', 
+            'Referral Code', 'Items', 'Total', 'Order Status', 'Special Requests', 
+            'Payment Method', 'Payment Status', 'Payment ID', 'Archived Date'
+          ];
+          
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Archive!A1',
+            valueInputOption: 'RAW',
+            requestBody: {
+              values: [archiveHeaders]
+            }
+          });
+        }
+
+        // Append archived orders to the Archive tab
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'Archive!A:O',
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values: ordersToArchive
+          }
+        });
+        
+        console.log(`Successfully archived ${ordersToArchive.length} orders`);
+      } catch (archiveError) {
+        console.error('Failed to archive orders:', archiveError);
+        return NextResponse.json(
+          { success: false, error: 'Failed to archive orders', details: archiveError },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Now delete the archived rows from the Orders tab (from bottom to top to avoid index shifting)
+    const sortedRowsToArchive = rowsToArchive.sort((a: number, b: number) => b - a);
     
-    for (const rowIndex of sortedRowsToDelete) {
+    for (const rowIndex of sortedRowsToArchive) {
       try {
         await sheets.spreadsheets.batchUpdate({
           spreadsheetId: SPREADSHEET_ID,
@@ -182,7 +233,7 @@ async function cleanupOrders(request: NextRequest) {
               {
                 deleteDimension: {
                   range: {
-                    sheetId: 0, // First sheet
+                    sheetId: 0, // Orders sheet (first sheet)
                     dimension: 'ROWS',
                     startIndex: rowIndex - 1, // Sheets API is 0-indexed
                     endIndex: rowIndex // Delete one row
@@ -192,26 +243,26 @@ async function cleanupOrders(request: NextRequest) {
             ]
           }
         });
-        console.log(`Deleted row ${rowIndex}`);
+        console.log(`Removed archived order from row ${rowIndex}`);
       } catch (deleteError) {
-        console.error(`Failed to delete row ${rowIndex}:`, deleteError);
+        console.error(`Failed to remove archived order from row ${rowIndex}:`, deleteError);
       }
     }
 
-    console.log('Order cleanup completed successfully');
+    console.log('Order archiving completed successfully');
 
     return NextResponse.json({
       success: true,
-      message: 'Order cleanup completed successfully',
-      deletedCount: rowsToDelete.length,
+      message: 'Order archiving completed successfully',
+      archivedCount: rowsToArchive.length,
       cutoffDate: cutoffDateString,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Error in scheduled order cleanup:', error);
+    console.error('Error in scheduled order archiving:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to cleanup orders', details: error },
+      { success: false, error: 'Failed to archive orders', details: error },
       { status: 500 }
     );
   }

@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Fetch all orders from Google Sheets
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
-      range: 'A:N', // Covers all columns including pickup time and payment info
+      range: 'Orders!A:N', // Covers all columns including pickup time and payment info
     });
 
     const rows = response.data.values || [];
