@@ -212,10 +212,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Validate payment method - only card payments are allowed
-    if (!orderData.paymentInfo || orderData.paymentInfo.type !== 'card') {
+    // Validate payment method - both cash and card payments are allowed
+    if (!orderData.paymentInfo || !['cash', 'card'].includes(orderData.paymentInfo.type)) {
       return NextResponse.json(
-        { success: false, message: 'Only credit/debit card payments are accepted.' },
+        { success: false, message: 'Please select a valid payment method (cash or card).' },
         { status: 400 }
       );
     }

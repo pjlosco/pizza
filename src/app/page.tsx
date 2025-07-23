@@ -59,7 +59,7 @@ export default function Home() {
     specialRequests: ""
   });
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
-    type: 'card'
+    type: 'cash'
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -290,7 +290,7 @@ export default function Home() {
           setShowCart(false);
         } else if (showOrderForm) {
           setShowOrderForm(false);
-          setPaymentInfo({ type: 'card' });
+          setPaymentInfo({ type: 'cash' });
           setCardPaymentForm(null);
         } else if (orderSubmitted) {
           setOrderSubmitted(false);
@@ -800,7 +800,7 @@ export default function Home() {
             {/* Pickup Only Notice */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-green-800 text-center">
-                🚚 Pickup Only - Credit/Debit card payment required
+                🚚 Pickup Only - Cash or Credit/Debit card payment accepted
               </p>
             </div>
             
@@ -1071,8 +1071,7 @@ export default function Home() {
               <div>
                 <label className="block text-sm font-medium text-black mb-3">Payment Method *</label>
                 <div className="space-y-3">
-                  {/* Cash payment option temporarily disabled */}
-                  {/* <div className="flex items-center">
+                  <div className="flex items-center">
                     <input
                       type="radio"
                       id="cash"
@@ -1085,7 +1084,7 @@ export default function Home() {
                     <label htmlFor="cash" className="ml-3 text-sm text-black">
                       💵 Cash on pickup
                     </label>
-                  </div> */}
+                  </div>
                   <div className="flex items-center">
                     <input
                       type="radio"
@@ -1214,7 +1213,7 @@ export default function Home() {
                 setOrderSubmitted(false);
                 setCart([]);
                 setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], pickupTime: "", specialRequests: "" });
-                setPaymentInfo({ type: 'card' });
+                setPaymentInfo({ type: 'cash' });
                 setCardPaymentForm(null);
                 setDateFieldError(false);
                 setAvailableTimeSlots([]);

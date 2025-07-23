@@ -13,6 +13,8 @@
   "dependencies": {
     "googleapis": "^128.0.0",
     "next": "15.3.4",
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^24.14.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "square": "^43.0.0",
