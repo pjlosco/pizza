@@ -570,19 +570,21 @@ export default function Home() {
       return;
     }
 
-    // Validate referral code is provided
-    if (!customerInfo.referralCode.trim()) {
-      setFieldErrors(prev => ({ ...prev, referralCode: "Please enter a referral code to place your order." }));
-      return;
-    }
-    
-    // Additional frontend validation - check if referral code looks valid
-    const validCodes = ['mila', 'patrick', 'rola']; // This should match your environment variable
-    const submittedCode = customerInfo.referralCode.trim().toLowerCase();
-    
-    if (!validCodes.includes(submittedCode)) {
-      setFieldErrors(prev => ({ ...prev, referralCode: "Invalid referral code. Please check your code and try again." }));
-      return;
+    // Validate referral code is provided (only required for cash payments)
+    if (paymentInfo.type === 'cash') {
+      if (!customerInfo.referralCode.trim()) {
+        setFieldErrors(prev => ({ ...prev, referralCode: "Please enter a referral code for cash payments." }));
+        return;
+      }
+      
+      // Additional frontend validation - check if referral code looks valid
+      const validCodes = ['mila', 'patrick', 'rola']; // This should match your environment variable
+      const submittedCode = customerInfo.referralCode.trim().toLowerCase();
+      
+      if (!validCodes.includes(submittedCode)) {
+        setFieldErrors(prev => ({ ...prev, referralCode: "Invalid referral code. Please check your code and try again." }));
+        return;
+      }
     }
 
     // Validate that the selected time is still available (in case someone else booked it)
@@ -1013,11 +1015,11 @@ export default function Home() {
               
               <div>
                 <label className={`block text-sm font-medium mb-1 ${fieldErrors.referralCode ? 'text-red-600' : 'text-black'}`}>
-                  Referral Code *
+                  Referral Code {paymentInfo.type === 'cash' ? '*' : ''}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={paymentInfo.type === 'cash'}
                   value={customerInfo.referralCode}
                   onChange={(e) => {
                     setCustomerInfo({...customerInfo, referralCode: e.target.value});
@@ -1026,7 +1028,7 @@ export default function Home() {
                       setFieldErrors(prev => ({ ...prev, referralCode: undefined }));
                     }
                   }}
-                  placeholder="Enter your referral code"
+                  placeholder={paymentInfo.type === 'cash' ? "Enter your referral code" : "Optional referral code"}
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${
                     fieldErrors.referralCode 
                       ? 'border-red-500 focus:ring-red-500 bg-red-50' 
@@ -1034,7 +1036,10 @@ export default function Home() {
                   }`}
                 />
                 <p className="text-xs text-black mt-1">
-                  A valid referral code is required to place an order
+                  {paymentInfo.type === 'cash' 
+                    ? "A valid referral code is required for cash payments" 
+                    : "Optional referral code for special offers"
+                  }
                 </p>
                 {fieldErrors.referralCode && (
                   <p className="text-sm text-red-600 mt-1">{fieldErrors.referralCode}</p>

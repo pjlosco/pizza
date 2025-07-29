@@ -129,19 +129,21 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Validate referral code
-    if (!orderData.customer.referralCode) {
-      return NextResponse.json(
-        { success: false, message: 'Referral code is required to place an order' },
-        { status: 400 }
-      );
-    }
-    
-    if (!validateReferralCode(orderData.customer.referralCode)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid referral code. Please check your code and try again.' },
-        { status: 400 }
-      );
+    // Validate referral code (only required for cash payments)
+    if (orderData.paymentInfo?.type === 'cash') {
+      if (!orderData.customer.referralCode) {
+        return NextResponse.json(
+          { success: false, message: 'Referral code is required for cash payments' },
+          { status: 400 }
+        );
+      }
+      
+      if (!validateReferralCode(orderData.customer.referralCode)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid referral code. Please check your code and try again.' },
+          { status: 400 }
+        );
+      }
     }
     
     // Validate customer information
