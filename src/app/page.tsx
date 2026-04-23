@@ -54,7 +54,7 @@ export default function Home() {
     phone: "",
     email: "",
     referralCode: "",
-    orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
+    orderDate: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().split('T')[0], // 6 hours from now
     pickupTime: "",
     specialRequests: ""
   });
@@ -465,37 +465,24 @@ export default function Home() {
     return date.toDateString() === today.toDateString();
   };
 
-  // Function to disable current day and Sundays in date picker
+  // Function to disable Sundays in date picker
   const isDateDisabled = (dateString: string) => {
-    return isToday(dateString) || isSunday(dateString);
+    return isSunday(dateString);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = e.target.value;
-    
+
     // Check if Sunday is selected and set error state
     if (isSunday(selectedDate)) {
       setDateFieldError(true);
       setCustomerInfo({...customerInfo, orderDate: selectedDate, pickupTime: ""});
       setAvailableTimeSlots([]); // Clear time slots for invalid date
-    } else if (isToday(selectedDate)) {
-      // If today is selected, automatically jump to next available day
-      const date = new Date(selectedDate);
-      do {
-        date.setDate(date.getDate() + 1);
-      } while (isDateDisabled(date.toISOString().split('T')[0]));
-      
-      const nextAvailableDate = date.toISOString().split('T')[0];
-      setDateFieldError(false);
-      setCustomerInfo({...customerInfo, orderDate: nextAvailableDate, pickupTime: ""});
-      
-      // Fetch available time slots for the auto-selected date
-      fetchAvailableTimeSlots(nextAvailableDate);
     } else {
       // Valid date selected
       setDateFieldError(false);
       setCustomerInfo({...customerInfo, orderDate: selectedDate, pickupTime: ""});
-      
+
       // Fetch available time slots for the selected date
       fetchAvailableTimeSlots(selectedDate);
     }
@@ -593,13 +580,6 @@ export default function Home() {
     if (isSunday(customerInfo.orderDate)) {
       setDateFieldError(true);
       alert("Sorry, we are closed on Sundays. Please select a different pickup date from Monday-Saturday.");
-      return;
-    }
-    
-    // Validate that today is not selected
-    if (isToday(customerInfo.orderDate)) {
-      setDateFieldError(true);
-      alert("Sorry, we don't accept same-day orders. Please select a pickup date at least 1 day in advance.");
       return;
     }
     
@@ -1002,7 +982,7 @@ export default function Home() {
                   required
                   value={customerInfo.orderDate}
                   onChange={handleDateChange}
-                  min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  min={new Date().toISOString().split('T')[0]}
                   max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:border-transparent text-black ${
                     dateFieldError 
@@ -1021,7 +1001,7 @@ export default function Home() {
                   </p>
                 )}
                 {!dateFieldError && !fieldErrors.date && (
-                  <p className="text-sm text-black mt-1">Open Monday-Saturday, 4:40 PM - 7:00 PM • Orders must be placed 1 day in advance</p>
+                  <p className="text-sm text-black mt-1">Open Monday-Saturday, 4:40 PM - 7:00 PM • 6 hour advance notice required</p>
                 )}
               </div>
               
