@@ -32,10 +32,9 @@ export async function POST(request: NextRequest) {
       ? 'https://connect.squareup.com' 
       : 'https://connect.squareupsandbox.com';
 
-    // Use environment-appropriate location ID
-    const locationId = environment === 'production'
-      ? process.env.SQUARE_LOCATION_ID || 'PRODUCTION_LOCATION_ID_NEEDED'
-      : 'L8SFFEWCCGKF3'; // Sandbox location ID
+    // Use the location ID from environment variables
+    // For server-side, use SQUARE_LOCATION_ID; for client-side fallback, use NEXT_PUBLIC_SQUARE_LOCATION_ID
+    const locationId = process.env.SQUARE_LOCATION_ID || process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || 'LOCATION_ID_NEEDED';
 
     // Create payment request
     const paymentData = {
@@ -72,16 +71,31 @@ export async function POST(request: NextRequest) {
 
     if (response.ok && result.payment) {
       console.log('✅ Payment successful:', result.payment.id);
-      
+
       return NextResponse.json({
         success: true,
         paymentId: result.payment.id,
         status: result.payment.status
       });
     } else {
-      console.error('❌ Payment failed:', result);
+      // Extract specific error information from Square's response
+      let errorMessage = 'Payment processing failed';
+      const errors = result.errors || [];
+
+      if (errors.length > 0) {
+        const firstError = errors[0];
+        errorMessage = firstError.detail || firstError.message || 'Payment processing failed';
+        console.error('❌ Payment failed:', firstError.code, '-', errorMessage);
+      } else {
+        console.error('❌ Payment failed:', result);
+      }
+
       return NextResponse.json(
-        { error: 'Payment failed', details: result.errors || [result] },
+        {
+          success: false,
+          error: errorMessage,
+          details: errors
+        },
         { status: 400 }
       );
     }

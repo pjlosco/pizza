@@ -59,14 +59,16 @@ export default function Home() {
     specialRequests: ""
   });
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
-    type: 'cash'
+    type: 'card'
   });
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [squareLoaded, setSquareLoaded] = useState(false);
-  const [cardPaymentForm, setCardPaymentForm] = useState<any>(null);
+    const [cardPaymentForm, setCardPaymentForm] = useState<any>(null);
   const [dateFieldError, setDateFieldError] = useState(false);
+  const [squareFormInitialized, setSquareFormInitialized] = useState(false);
+ 
   const [availableTimeSlots, setAvailableTimeSlots] = useState<{value: string, display: string}[]>([]);
   const [timeSlotCache, setTimeSlotCache] = useState<{[date: string]: {value: string, display: string}[]}>({}); 
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
@@ -88,55 +90,32 @@ export default function Home() {
   // Load Square SDK only when needed (when user selects card payment)
   const loadSquareScript = () => {
     if (typeof window !== 'undefined' && !window.Square && !squareLoaded) {
-      
-      // Try loading Square SDK with fallback URLs
-      const tryLoadSquare = (urls: string[], index = 0): void => {
-        if (index >= urls.length) {
-          console.error('Payment system temporarily unavailable');
-          setSquareLoaded(false);
-          return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = urls[index];
-        script.async = true;
-        
-        script.onload = () => {
-          // Determine environment based on application ID, not SDK URL
-          const applicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-demo-app-id';
-          const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
-          setSquareEnvironment(environment);
-          setSquareLoaded(true);
-        };
-        
-        script.onerror = (error) => {
-          console.error('Payment system temporarily unavailable');
-          
-          // Remove the failed script
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-          // Try the next URL
-          tryLoadSquare(urls, index + 1);
-        };
-        
-        document.head.appendChild(script);
+      const script = document.createElement('script');
+      // Square's official SDK URL for both sandbox and production
+      script.src = 'https://web.squarecdn.com/v1/square.js';
+      script.async = true;
+
+      script.onload = () => {
+        // Determine environment based on application ID
+        const applicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-demo-app-id';
+        const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
+        console.log('✅ Square SDK loaded successfully (environment:', environment, ')');
+        setSquareEnvironment(environment);
+        setSquareLoaded(true);
       };
 
-      // Determine environment from Application ID (since SQUARE_ENVIRONMENT is server-only)
-      const applicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-demo-app-id';
-      const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
-      
-      const squareUrls = environment === 'production'
-        ? ['https://web.squarecdn.com/v1/square.js'] // Production SDK
-        : ['https://sandbox.web.squarecdn.com/v1/square.js', 'https://web.squarecdn.com/v1/square.js']; // Sandbox first, then fallback
-      
-      tryLoadSquare(squareUrls);
-      
+      script.onerror = () => {
+        console.error('❌ Failed to load Square SDK');
+        setSquareLoaded(false);
+      };
+
+      document.head.appendChild(script);
+
     } else if (window.Square && !squareLoaded) {
       // Square SDK was already loaded
       const applicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-demo-app-id';
       const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
+      console.log('✅ Square SDK already available (environment:', environment, ')');
       setSquareEnvironment(environment);
       setSquareLoaded(true);
     }
@@ -144,7 +123,7 @@ export default function Home() {
 
   // Initialize Square payment form when needed
   useEffect(() => {
-    if (paymentInfo.type === 'card' && showOrderForm) {
+    if (paymentInfo.type === 'card' && showOrderForm && !squareFormInitialized) {
       // Load Square SDK if not already loaded
       if (!squareLoaded && !window.Square) {
         loadSquareScript();
@@ -155,7 +134,7 @@ export default function Home() {
         initializeSquarePaymentForm();
       }
     }
-  }, [squareLoaded, squareEnvironment, paymentInfo.type, showOrderForm, cardPaymentForm]);
+  }, [squareLoaded, squareEnvironment, paymentInfo.type, showOrderForm, cardPaymentForm, squareFormInitialized]);
 
   // Fetch available time slots when the order form opens
   useEffect(() => {
@@ -168,43 +147,56 @@ export default function Home() {
   }, [showOrderForm]);
 
   const initializeSquarePaymentForm = async () => {
+    const container = document.getElementById('card-container');
+    if (!container) {
+      console.error('❌ Card container not found');
+      setFieldErrors(prev => ({ ...prev, payment: 'Payment form container error' }));
+      return;
+    }
+
+    // Clear the container first to ensure clean initialization
+    container.innerHTML = '';
+
+    // Check if already initialized to prevent duplicates
+    if (squareFormInitialized) {
+      console.log('✅ Square form already initialized');
+      return;
+    }
+
     if (!window.Square) {
-      console.error('Payment system temporarily unavailable');
-      
+      console.error('❌ Square SDK not available');
+
       // Create a mock Square form for testing when SDK fails to load
-      const container = document.getElementById('card-container');
-      if (container) {
-        container.innerHTML = `
-          <div class="space-y-4">
-            <div class="text-blue-600 text-center p-3 bg-blue-50 rounded mb-4">
-              <p class="font-medium">Testing Mode - Square SDK Unavailable</p>
-              <p class="text-sm mt-1">Using mock payment form for development</p>
+      container.innerHTML = `
+        <div class="space-y-4">
+          <div class="text-blue-600 text-center p-3 bg-blue-50 rounded mb-4">
+            <p class="font-medium">Testing Mode - Square SDK Unavailable</p>
+            <p class="text-sm mt-1">Using mock payment form for development</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
+            <input type="text" placeholder="4111 1111 1111 1111" class="w-full p-2 border border-gray-300 rounded" readonly>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Expiry</label>
+              <input type="text" placeholder="12/25" class="w-full p-2 border border-gray-300 rounded" readonly>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-              <input type="text" placeholder="4111 1111 1111 1111" class="w-full p-2 border border-gray-300 rounded" readonly>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Expiry</label>
-                <input type="text" placeholder="12/25" class="w-full p-2 border border-gray-300 rounded" readonly>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">CVV</label>
-                <input type="text" placeholder="123" class="w-full p-2 border border-gray-300 rounded" readonly>
-              </div>
-            </div>
-            <div class="text-xs text-gray-600 mt-2 text-center">
-              📝 This is a mock form - payment will be simulated in testing mode
+              <label class="block text-sm font-medium text-gray-700 mb-1">CVV</label>
+              <input type="text" placeholder="123" class="w-full p-2 border border-gray-300 rounded" readonly>
             </div>
           </div>
-        `;
-      }
-      
+          <div class="text-xs text-gray-600 mt-2 text-center">
+            📝 This is a mock form - payment will be simulated in testing mode
+          </div>
+        </div>
+      `;
+
       // Set up a mock payment form for testing
-      setCardPaymentForm({ 
-        payments: { mock: true }, 
-        card: { 
+      setCardPaymentForm({
+        payments: { mock: true },
+        card: {
           mock: true,
           tokenize: () => Promise.resolve({
             status: 'OK',
@@ -216,56 +208,101 @@ export default function Home() {
               }
             }
           })
-        } 
+        }
       });
       return;
     }
 
-    // For demo purposes, use a placeholder if no real credentials are set
     const rawApplicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-demo-app-id';
-    // Clean the application ID of any potential whitespace or invisible characters
     let applicationId = rawApplicationId.trim();
-    
+
     // Clean application ID if it matches the expected format
     if (applicationId.includes('sandbox-sq0idb-ZlIB2SbOM9sj_MPt2WO_VQ')) {
       applicationId = 'sandbox-sq0idb-ZlIB2SbOM9sj_MPt2WO_VQ';
     }
-    
-    // Use the environment that was detected when the SDK was loaded
-    const detectedFromAppId = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
-    const environment = squareEnvironment || detectedFromAppId;
-    
-    if (!process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID) {
-      console.warn('Payment system in demo mode');
+
+    const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
+    // Use location ID from environment variables - it must match your application ID
+    const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || 'LOCATION_ID_NEEDED';
+
+    // In development, skip the Web Payments SDK due to environment detection issues
+    // Use mock form for testing instead
+    if (!process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID.startsWith('sandbox-')) {
+      console.log('📝 Using mock payment form for sandbox development');
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          <div class="text-blue-600 text-center p-3 bg-blue-50 rounded mb-4">
+            <p class="font-medium">Sandbox Mode - Using Mock Payment Form</p>
+            <p class="text-sm mt-1">In production, this will use Square's real payment processing</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
+            <input type="text" id="mock-card-number" placeholder="4111 1111 1111 1111" class="w-full p-2 border border-gray-300 rounded" value="4111111111111111">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Expiry (MM/YY)</label>
+              <input type="text" id="mock-expiry" placeholder="12/25" class="w-full p-2 border border-gray-300 rounded" value="12/25">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">CVV</label>
+              <input type="text" id="mock-cvv" placeholder="123" class="w-full p-2 border border-gray-300 rounded" value="123">
+            </div>
+          </div>
+          <div class="text-xs text-gray-600 mt-2 text-center">
+            📝 Mock form - payments will be simulated for testing
+          </div>
+        </div>
+      `;
+
+      setCardPaymentForm({
+        payments: { mock: true },
+        card: {
+          mock: true,
+          tokenize: () => {
+            const cardNumber = (document.getElementById('mock-card-number') as HTMLInputElement)?.value || '4111111111111111';
+            const last4 = cardNumber.slice(-4);
+            return Promise.resolve({
+              status: 'OK',
+              token: 'mock-token-' + Date.now(),
+              details: {
+                card: {
+                  last4: last4,
+                  brand: 'Visa'
+                }
+              }
+            });
+          }
+        }
+      });
+
+      setSquareFormInitialized(true);
+      return;
     }
 
     try {
-      // Determine environment from Application ID and use appropriate location ID
-      const environment = applicationId.startsWith('sandbox-') ? 'sandbox' : 'production';
-      const locationId = environment === 'production'
-        ? process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || 'PRODUCTION_LOCATION_ID_NEEDED'
-        : 'L8SFFEWCCGKF3'; // Sandbox location ID
-      
-      // Initialize Square payments - SDK auto-detects environment from application ID
+      console.log('🔄 Initializing Square payment form...', { applicationId: applicationId.substring(0, 10) + '...', environment, locationId });
+
       const payments = window.Square.payments(applicationId, locationId);
       const card = await payments.card();
       await card.attach('#card-container');
-      
+
+      console.log('✅ Square payment form initialized successfully');
       setCardPaymentForm({ payments, card });
+      setSquareFormInitialized(true);
     } catch (error) {
-      console.error('Payment system temporarily unavailable');
-      
-      // Show an error message in the UI
-      const container = document.getElementById('card-container');
-      if (container) {
-        container.innerHTML = `
-          <div class="text-red-600 text-center p-4">
-            <p class="font-medium">Payment form setup required</p>
-            <p class="text-sm mt-2">Please check the console for setup instructions</p>
-            <p class="text-xs mt-1">See SQUARE_PAYMENT_SETUP.md for details</p>
-          </div>
-        `;
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Failed to initialize payment form:', errorMessage);
+
+      container.innerHTML = `
+        <div class="text-red-600 text-center p-4">
+          <p class="font-medium">Payment form setup failed</p>
+          <p class="text-sm mt-2 text-gray-700">${errorMessage}</p>
+          <p class="text-xs mt-1 text-gray-600">Please refresh the page and try again</p>
+        </div>
+      `;
+      setFieldErrors(prev => ({ ...prev, payment: 'Payment form initialization failed. Please refresh and try again.' }));
     }
   };
 
@@ -290,8 +327,9 @@ export default function Home() {
           setShowCart(false);
         } else if (showOrderForm) {
           setShowOrderForm(false);
-          setPaymentInfo({ type: 'cash' });
+          setPaymentInfo({ type: 'card' });
           setCardPaymentForm(null);
+          setSquareFormInitialized(false);
         } else if (orderSubmitted) {
           setOrderSubmitted(false);
           setCart([]);
@@ -312,6 +350,25 @@ export default function Home() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showCart, showOrderForm, orderSubmitted, selectedImage]);
+
+  // Handle Square payment form initialization when payment type changes to card
+  useEffect(() => {
+    if (paymentInfo.type === 'card' && showOrderForm) {
+      // Load Square SDK if not already loaded
+      if (!squareLoaded) {
+        loadSquareScript();
+      }
+      
+      // Initialize payment form after a short delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (paymentInfo.type === 'card' && showOrderForm) {
+          initializeSquarePaymentForm();
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [paymentInfo.type, showOrderForm, squareLoaded]);
 
   const pizzaMenu = [
     { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organic tomato sauce" },
@@ -606,7 +663,8 @@ export default function Home() {
       if (paymentInfo.type === 'card') {
         paymentResult = await processCardPayment();
         if (!paymentResult.success) {
-          setFieldErrors(prev => ({ ...prev, payment: 'Payment failed. Please check your card information and try again.' }));
+          const errorMsg = paymentResult.error || 'Payment failed. Please check your card information and try again.';
+          setFieldErrors(prev => ({ ...prev, payment: errorMsg }));
           setIsSubmittingOrder(false);
           return;
         }
@@ -675,11 +733,13 @@ export default function Home() {
 
   const processCardPayment = async () => {
     if (!cardPaymentForm || !cardPaymentForm.card) {
+      console.error('❌ Payment form not initialized');
       throw new Error('Payment form not initialized');
     }
 
     // Check if we're in mock/testing mode (Square SDK failed to load)
     if (cardPaymentForm.card.mock || !window.Square) {
+      console.log('⚠️ Using mock payment (SDK unavailable)');
 
       // Simulate a successful payment for testing purposes
       setPaymentInfo(prev => ({
@@ -688,16 +748,17 @@ export default function Home() {
         cardLast4: '1111',
         cardBrand: 'Visa'
       }));
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         paymentId: 'test-payment-' + Date.now(),
-        mock: true 
+        mock: true
       };
     }
 
     // Check if we're in demo mode (no credentials but Square SDK loaded)
     if (!process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID) {
+      console.log('⚠️ Using demo payment (no credentials configured)');
 
       // Simulate a successful payment for demo purposes
       setPaymentInfo(prev => ({
@@ -706,18 +767,22 @@ export default function Home() {
         cardLast4: '1111',
         cardBrand: 'Visa'
       }));
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         paymentId: 'demo-payment-' + Date.now(),
-        demo: true 
+        demo: true
       };
     }
 
     try {
+      console.log('🔄 Tokenizing card...');
       const result = await cardPaymentForm.card.tokenize();
-      
+
       if (result.status === 'OK') {
+        console.log('✅ Card tokenized successfully');
+        console.log('🔄 Processing payment with backend...');
+
         const paymentResponse = await fetch('/api/payment', {
           method: 'POST',
           headers: {
@@ -731,8 +796,10 @@ export default function Home() {
         });
 
         const paymentData = await paymentResponse.json();
-        
-        if (paymentData.success) {
+
+        if (paymentResponse.ok && paymentData.success) {
+          console.log('✅ Payment successful:', paymentData.paymentId);
+
           // Update payment info with card details
           setPaymentInfo(prev => ({
             ...prev,
@@ -740,19 +807,26 @@ export default function Home() {
             cardLast4: result.details?.card?.last4,
             cardBrand: result.details?.card?.brand
           }));
-          
+
           return { success: true, paymentId: paymentData.paymentId };
         } else {
-          console.error('Payment processing failed');
-          return { success: false, error: paymentData.error };
+          const errorDetails = paymentData.details || paymentData.error || 'Unknown error';
+          console.error('❌ Payment processing failed:', errorDetails);
+          return { success: false, error: paymentData.error || 'Payment processing failed' };
         }
+      } else if (result.status === 'UNSUPPORTED_CARD_BRAND') {
+        const errorMsg = 'This card brand is not supported. Please use Visa, Mastercard, American Express, or Discover.';
+        console.error('❌', errorMsg);
+        return { success: false, error: errorMsg };
       } else {
-        console.error('Card tokenization failed');
-        return { success: false, error: 'Card tokenization failed' };
+        const errorMsg = result.errors?.[0]?.message || 'Card tokenization failed';
+        console.error('❌ Card tokenization failed:', errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (error) {
-      console.error('Payment processing error');
-      return { success: false, error: 'Payment processing failed' };
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Payment processing error:', errorMessage);
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -877,6 +951,7 @@ export default function Home() {
                   setDateFieldError(false);
                   setAvailableTimeSlots([]);
                   setFieldErrors({});
+                  setSquareFormInitialized(false);
                 }}
                 className="text-black hover:text-gray-700 text-2xl"
               >
@@ -899,6 +974,17 @@ export default function Home() {
                   required
                   value={customerInfo.name}
                   onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={customerInfo.email}
+                  onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 />
               </div>
@@ -1001,50 +1087,105 @@ export default function Home() {
                   <p className="text-sm text-red-600 mt-1">{fieldErrors.pickupTime}</p>
                 )}
               </div>
-              
+
+              {/* Payment Method Selection */}
               <div>
-                <label className="block text-sm font-medium text-black mb-1">Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={customerInfo.email}
-                  onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                />
-              </div>
-              
-              <div>
-                <label className={`block text-sm font-medium mb-1 ${fieldErrors.referralCode ? 'text-red-600' : 'text-black'}`}>
-                  Referral Code {paymentInfo.type === 'cash' ? '*' : ''}
-                </label>
-                <input
-                  type="text"
-                  required={paymentInfo.type === 'cash'}
-                  value={customerInfo.referralCode}
-                  onChange={(e) => {
-                    setCustomerInfo({...customerInfo, referralCode: e.target.value});
-                    // Clear referral code error when user starts typing
-                    if (fieldErrors.referralCode) {
-                      setFieldErrors(prev => ({ ...prev, referralCode: undefined }));
-                    }
-                  }}
-                  placeholder={paymentInfo.type === 'cash' ? "Enter your referral code" : "Optional referral code"}
-                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${
-                    fieldErrors.referralCode 
-                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
-                      : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                />
-                <p className="text-xs text-black mt-1">
-                  {paymentInfo.type === 'cash' 
-                    ? "A valid referral code is required for cash payments" 
-                    : "Optional referral code for special offers"
-                  }
-                </p>
-                {fieldErrors.referralCode && (
-                  <p className="text-sm text-red-600 mt-1">{fieldErrors.referralCode}</p>
+                <label className="block text-sm font-medium text-black mb-3">Payment Method *</label>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="cash"
+                      name="paymentType"
+                      value="cash"
+                      checked={paymentInfo.type === 'cash'}
+                      onChange={() => {
+                        setPaymentInfo({ type: 'cash' });
+                        // Reset Square form flag when switching to cash
+                        setSquareFormInitialized(false);
+                        // Clear any card payment errors when switching to cash
+                        if (fieldErrors.payment) {
+                          setFieldErrors(prev => ({ ...prev, payment: undefined }));
+                        }
+                      }}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                    />
+                    <label htmlFor="cash" className="ml-3 text-sm text-black">
+                      💵 Cash on pickup
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="card"
+                      name="paymentType"
+                      value="card"
+                      checked={paymentInfo.type === 'card'}
+                      onChange={() => {
+                        setPaymentInfo({ type: 'card' });
+                        // Clear any card payment errors
+                        if (fieldErrors.payment) {
+                          setFieldErrors(prev => ({ ...prev, payment: undefined }));
+                        }
+                      }}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                    />
+                    <label htmlFor="card" className="ml-3 text-sm text-black">
+                      💳 Credit/Debit Card
+                    </label>
+                  </div>
+                </div>
+
+                {/* Square Card Payment Form */}
+                {paymentInfo.type === 'card' && (
+                  <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h4 className="text-sm font-medium text-black mb-3">Card Information</h4>
+                    {squareLoaded ? (
+                      <div id="card-container" className="bg-white border border-gray-300 rounded-lg p-3"></div>
+                    ) : (
+                      <div className="bg-white border border-gray-300 rounded-lg p-3 text-center text-black">
+                        Loading payment form...
+                      </div>
+                    )}
+                    <p className="text-xs text-black mt-2">
+                      🔒 Your payment information is secure and encrypted
+                    </p>
+                  </div>
                 )}
               </div>
+              
+              {/* Referral Code Field - Only show for cash payments */}
+              {paymentInfo.type === 'cash' && (
+                <div>
+                  <label className={`block text-sm font-medium mb-1 ${fieldErrors.referralCode ? 'text-red-600' : 'text-black'}`}>
+                    Referral Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customerInfo.referralCode}
+                    onChange={(e) => {
+                      setCustomerInfo({...customerInfo, referralCode: e.target.value});
+                      // Clear referral code error when user starts typing
+                      if (fieldErrors.referralCode) {
+                        setFieldErrors(prev => ({ ...prev, referralCode: undefined }));
+                      }
+                    }}
+                    placeholder="Enter your referral code"
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${
+                      fieldErrors.referralCode 
+                        ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                        : 'border-gray-300 focus:ring-blue-500'
+                    }`}
+                  />
+                  <p className="text-xs text-black mt-1">
+                    A valid referral code is required for cash payments
+                  </p>
+                  {fieldErrors.referralCode && (
+                    <p className="text-sm text-red-600 mt-1">{fieldErrors.referralCode}</p>
+                  )}
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-black mb-1">Special Requests</label>
@@ -1070,58 +1211,6 @@ export default function Home() {
                     {customerInfo.specialRequests.length}/500
                   </span>
                 </div>
-              </div>
-
-              {/* Payment Method Selection */}
-              <div>
-                <label className="block text-sm font-medium text-black mb-3">Payment Method *</label>
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      id="cash"
-                      name="paymentType"
-                      value="cash"
-                      checked={paymentInfo.type === 'cash'}
-                      onChange={() => setPaymentInfo({ type: 'cash' })}
-                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                    />
-                    <label htmlFor="cash" className="ml-3 text-sm text-black">
-                      💵 Cash on pickup
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      id="card"
-                      name="paymentType"
-                      value="card"
-                      checked={paymentInfo.type === 'card'}
-                      onChange={() => setPaymentInfo({ type: 'card' })}
-                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                    />
-                    <label htmlFor="card" className="ml-3 text-sm text-black">
-                      💳 Credit/Debit Card
-                    </label>
-                  </div>
-                </div>
-
-                {/* Square Card Payment Form */}
-                {paymentInfo.type === 'card' && (
-                  <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <h4 className="text-sm font-medium text-black mb-3">Card Information</h4>
-                    {squareLoaded ? (
-                      <div id="card-container" className="bg-white border border-gray-300 rounded-lg p-3"></div>
-                    ) : (
-                      <div className="bg-white border border-gray-300 rounded-lg p-3 text-center text-black">
-                        Loading payment form...
-                      </div>
-                    )}
-                    <p className="text-xs text-black mt-2">
-                      🔒 Your payment information is secure and encrypted
-                    </p>
-                  </div>
-                )}
               </div>
               
               <div className="border-t pt-4">
@@ -1218,8 +1307,9 @@ export default function Home() {
                 setOrderSubmitted(false);
                 setCart([]);
                 setCustomerInfo({ name: "", phone: "", email: "", referralCode: "", orderDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], pickupTime: "", specialRequests: "" });
-                setPaymentInfo({ type: 'cash' });
+                setPaymentInfo({ type: 'card' });
                 setCardPaymentForm(null);
+                setSquareFormInitialized(false);
                 setDateFieldError(false);
                 setAvailableTimeSlots([]);
                 setTimeSlotCache({});
