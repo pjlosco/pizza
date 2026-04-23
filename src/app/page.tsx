@@ -354,7 +354,7 @@ export default function Home() {
 
   const pizzaMenu = [
     { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organic tomato sauce" },
-    { id: "yoshi", name: "Yoshi's Weekly Special", price: 25, description: "Flavorful pepperoni with melted cheese, basil, and Italian seasoning" }
+    { id: "yoshi", name: "Yoshi's Pepperoni", price: 25, description: "Flavorful pepperoni with melted cheese, basil, and Italian seasoning" }
   ];
 
   const getTotalCartQuantity = () => {
@@ -1392,11 +1392,11 @@ export default function Home() {
                   </>
                 ) : (
                   <>
-                    {/* Background image for Yoshi's Weekly Special */}
+                    {/* Background image for Yoshi's Pepperoni */}
                     <div className="absolute inset-0 z-0">
                       <img
                         src="/gallery/pepperonibasil.jpeg"
-                        alt="Yoshi's Weekly Special Pizza"
+                        alt="Yoshi's Pepperoni Pizza"
                         className="w-full h-full object-cover scale-125"
                       />
                     </div>
