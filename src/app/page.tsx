@@ -351,24 +351,6 @@ export default function Home() {
     };
   }, [showCart, showOrderForm, orderSubmitted, selectedImage]);
 
-  // Handle Square payment form initialization when payment type changes to card
-  useEffect(() => {
-    if (paymentInfo.type === 'card' && showOrderForm) {
-      // Load Square SDK if not already loaded
-      if (!squareLoaded) {
-        loadSquareScript();
-      }
-      
-      // Initialize payment form after a short delay to ensure DOM is ready
-      const timer = setTimeout(() => {
-        if (paymentInfo.type === 'card' && showOrderForm) {
-          initializeSquarePaymentForm();
-        }
-      }, 300);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [paymentInfo.type, showOrderForm, squareLoaded]);
 
   const pizzaMenu = [
     { id: "margherita", name: "Classic Margherita", price: 20, description: "A simple pizza with fresh mozzarella, and our signature organic tomato sauce" },
