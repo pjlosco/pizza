@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://web.squarecdn.com; connect-src 'self' https://web.squarecdn.com https://pci-connect.squareup.com https://connect.squareup.com https://connect.squareupsandbox.com https://api.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://web.squarecdn.com; frame-src 'self' https://web.squarecdn.com https://pci-connect.squareup.com; connect-src 'self' https://web.squarecdn.com https://pci-connect.squareup.com https://connect.squareup.com https://connect.squareupsandbox.com; style-src 'self' 'unsafe-inline' https://web.squarecdn.com; img-src 'self' data: https:; font-src 'self' data: https://web.squarecdn.com;"
           }
         ]
       }
